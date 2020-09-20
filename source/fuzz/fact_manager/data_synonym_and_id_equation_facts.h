@@ -27,15 +27,34 @@ namespace spvtools {
 namespace fuzz {
 namespace fact_manager {
 
+// Forward reference to the DeadBlockFacts class.
+class DeadBlockFacts;
+// Forward reference to the IrrelevantValueFacts class.
+class IrrelevantValueFacts;
+
 // The purpose of this class is to group the fields and data used to represent
 // facts about data synonyms and id equations.
 class DataSynonymAndIdEquationFacts {
  public:
   // See method in FactManager which delegates to this method.
-  void AddFact(const protobufs::FactDataSynonym& fact, opt::IRContext* context);
+  // |dead_block_facts| and |irrelevant_value_facts| are passed for consistency
+  // checks.
+  void AddFact(const protobufs::FactDataSynonym& fact,
+               const DeadBlockFacts& dead_block_facts,
+               const IrrelevantValueFacts& irrelevant_value_facts,
+               opt::IRContext* context);
 
   // See method in FactManager which delegates to this method.
-  void AddFact(const protobufs::FactIdEquation& fact, opt::IRContext* context);
+  // |dead_block_facts| and |irrelevant_value_facts| are passed for consistency
+  // checks.
+  void AddFact(const protobufs::FactIdEquation& fact,
+               const DeadBlockFacts& dead_block_facts,
+               const IrrelevantValueFacts& irrelevant_value_facts,
+               opt::IRContext* context);
+
+  // See method in FactManager which delegates to this method.
+  std::vector<const protobufs::DataDescriptor*> GetSynonymsForId(
+      uint32_t id) const;
 
   // See method in FactManager which delegates to this method.
   std::vector<const protobufs::DataDescriptor*> GetSynonymsForDataDescriptor(

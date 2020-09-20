@@ -188,13 +188,14 @@ bool FunctionIsEntryPoint(opt::IRContext* context, uint32_t function_id);
 
 // Checks whether |id| is available (according to dominance rules) at the use
 // point defined by input operand |use_input_operand_index| of
-// |use_instruction|.
+// |use_instruction|. |use_instruction| must be a in some basic block.
 bool IdIsAvailableAtUse(opt::IRContext* context,
                         opt::Instruction* use_instruction,
                         uint32_t use_input_operand_index, uint32_t id);
 
 // Checks whether |id| is available (according to dominance rules) at the
-// program point directly before |instruction|.
+// program point directly before |instruction|. |instruction| must be in some
+// basic block.
 bool IdIsAvailableBeforeInstruction(opt::IRContext* context,
                                     opt::Instruction* instruction, uint32_t id);
 
@@ -528,6 +529,12 @@ bool MembersHaveBuiltInDecoration(opt::IRContext* ir_context,
 // |split_before| would separate an OpSampledImage instruction from its usage.
 bool SplittingBeforeInstructionSeparatesOpSampledImageDefinitionFromUse(
     opt::BasicBlock* block_to_split, opt::Instruction* split_before);
+
+// Returns true if the instruction given has no side effects.
+// TODO(https://github.com/KhronosGroup/SPIRV-Tools/issues/3758): Add any
+//  missing instructions to the list. In particular, GLSL extended instructions
+//  (called using OpExtInst) have not been considered.
+bool InstructionHasNoSideEffects(const opt::Instruction& instruction);
 
 }  // namespace fuzzerutil
 }  // namespace fuzz

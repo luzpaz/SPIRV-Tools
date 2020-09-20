@@ -18,6 +18,7 @@ if (${SPIRV_BUILD_FUZZER})
           fuzz_test_util.h
 
           call_graph_test.cpp
+          comparator_deep_blocks_first_test.cpp
           data_synonym_transformation_test.cpp
           equivalence_relation_test.cpp
           fact_manager_test.cpp
@@ -27,8 +28,10 @@ if (${SPIRV_BUILD_FUZZER})
           fuzzer_pass_donate_modules_test.cpp
           fuzzer_pass_outline_functions_test.cpp
           instruction_descriptor_test.cpp
+          fuzzer_pass_test.cpp
           replayer_test.cpp
           transformation_access_chain_test.cpp
+          transformation_add_bit_instruction_synonym_test.cpp
           transformation_add_constant_boolean_test.cpp
           transformation_add_constant_composite_test.cpp
           transformation_add_constant_null_test.cpp
@@ -62,7 +65,9 @@ if (${SPIRV_BUILD_FUZZER})
           transformation_composite_extract_test.cpp
           transformation_composite_insert_test.cpp
           transformation_compute_data_synonym_fact_closure_test.cpp
+          transformation_duplicate_region_with_selection_test.cpp
           transformation_equation_instruction_test.cpp
+          transformation_flatten_conditional_branch_test.cpp
           transformation_function_call_test.cpp
           transformation_inline_function_test.cpp
           transformation_invert_comparison_operator_test.cpp

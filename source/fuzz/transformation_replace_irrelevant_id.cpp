@@ -37,8 +37,8 @@ bool TransformationReplaceIrrelevantId::IsApplicable(
   auto id_of_interest = message_.id_use_descriptor().id_of_interest();
 
   // The id must be irrelevant.
-  if (!transformation_context.GetFactManager()->IdIsIrrelevant(
-          id_of_interest)) {
+  if (!transformation_context.GetFactManager()->IdIsIrrelevant(id_of_interest,
+                                                               ir_context)) {
     return false;
   }
 
@@ -77,9 +77,6 @@ bool TransformationReplaceIrrelevantId::IsApplicable(
   }
 
   // The id must be available to use at the use point.
-  // TODO(https://github.com/KhronosGroup/SPIRV-Tools/issues/3722):
-  //  IdIsAvailable at use always returns false if the instruction is in an
-  //  unreachable block, so it might need to be fixed.
   return fuzzerutil::IdIsAvailableAtUse(
       ir_context, use_instruction,
       message_.id_use_descriptor().in_operand_index(),

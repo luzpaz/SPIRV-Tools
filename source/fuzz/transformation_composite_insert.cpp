@@ -143,7 +143,7 @@ void TransformationCompositeInsert::Apply(
 
   // If |composite_id| is irrelevant then don't add any synonyms.
   if (transformation_context->GetFactManager()->IdIsIrrelevant(
-          message_.composite_id())) {
+          message_.composite_id(), ir_context)) {
     return;
   }
   uint32_t current_node_type_id = composite_type_id;
@@ -166,7 +166,7 @@ void TransformationCompositeInsert::Apply(
         continue;
       }
       current_index.push_back(i);
-      // TODO: (https://github.com/KhronosGroup/SPIRV-Tools/issues/3659)
+      // TODO(https://github.com/KhronosGroup/SPIRV-Tools/issues/3659):
       //       Google C++ guide restricts the use of r-value references.
       //       https://google.github.io/styleguide/cppguide.html#Rvalue_references
       //       Consider changing the signature of MakeDataDescriptor()
@@ -184,7 +184,7 @@ void TransformationCompositeInsert::Apply(
   // The element which has been changed is synonymous to the found object
   // itself. Add this fact only if |object_id| is not irrelevant.
   if (!transformation_context->GetFactManager()->IdIsIrrelevant(
-          message_.object_id())) {
+          message_.object_id(), ir_context)) {
     transformation_context->GetFactManager()->AddFactDataSynonym(
         MakeDataDescriptor(message_.object_id(), {}),
         MakeDataDescriptor(message_.fresh_id(), std::vector<uint32_t>(index)),

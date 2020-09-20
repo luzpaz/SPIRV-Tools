@@ -33,7 +33,7 @@ uint32_t MaybeGetOpConstant(opt::IRContext* ir_context,
     if (inst.opcode() == SpvOpConstant && inst.type_id() == type_id &&
         inst.GetInOperand(0).words == words &&
         transformation_context.GetFactManager()->IdIsIrrelevant(
-            inst.result_id()) == is_irrelevant) {
+            inst.result_id(), ir_context) == is_irrelevant) {
       return inst.result_id();
     }
   }
@@ -261,8 +261,8 @@ bool CanMakeSynonymOf(opt::IRContext* ir_context,
     // We can only make a synonym of an instruction that generates an id.
     return false;
   }
-  if (transformation_context.GetFactManager()->IdIsIrrelevant(
-          inst->result_id())) {
+  if (transformation_context.GetFactManager()->IdIsIrrelevant(inst->result_id(),
+                                                              ir_context)) {
     // An irrelevant id can't be a synonym of anything.
     return false;
   }
@@ -503,6 +503,9 @@ bool FunctionIsEntryPoint(opt::IRContext* context, uint32_t function_id) {
 bool IdIsAvailableAtUse(opt::IRContext* context,
                         opt::Instruction* use_instruction,
                         uint32_t use_input_operand_index, uint32_t id) {
+  assert(context->get_instr_block(use_instruction) &&
+         "|use_instruction| must be in a basic block");
+
   auto defining_instruction = context->get_def_use_mgr()->GetDef(id);
   auto enclosing_function =
       context->get_instr_block(use_instruction)->GetParent();
@@ -521,6 +524,12 @@ bool IdIsAvailableAtUse(opt::IRContext* context,
     return false;
   }
   auto dominator_analysis = context->GetDominatorAnalysis(enclosing_function);
+  if (!dominator_analysis->IsReachable(
+          context->get_instr_block(use_instruction)) ||
+      !dominator_analysis->IsReachable(context->get_instr_block(id))) {
+    // Skip unreachable blocks.
+    return false;
+  }
   if (use_instruction->opcode() == SpvOpPhi) {
     // In the case where the use is an operand to OpPhi, it is actually the
     // *parent* block associated with the operand that must be dominated by
@@ -536,6 +545,9 @@ bool IdIsAvailableAtUse(opt::IRContext* context,
 bool IdIsAvailableBeforeInstruction(opt::IRContext* context,
                                     opt::Instruction* instruction,
                                     uint32_t id) {
+  assert(context->get_instr_block(instruction) &&
+         "|instruction| must be in a basic block");
+
   auto defining_instruction = context->get_def_use_mgr()->GetDef(id);
   auto enclosing_function = context->get_instr_block(instruction)->GetParent();
   // If the id a function parameter, it needs to be associated with the
@@ -552,8 +564,12 @@ bool IdIsAvailableBeforeInstruction(opt::IRContext* context,
     // The instruction is not available right before its own definition.
     return false;
   }
-  return context->GetDominatorAnalysis(enclosing_function)
-      ->Dominates(defining_instruction, instruction);
+  const auto* dominator_analysis =
+      context->GetDominatorAnalysis(enclosing_function);
+  return dominator_analysis->IsReachable(
+             context->get_instr_block(instruction)) &&
+         dominator_analysis->IsReachable(context->get_instr_block(id)) &&
+         dominator_analysis->Dominates(defining_instruction, instruction);
 }
 
 bool InstructionIsFunctionParameter(opt::Instruction* instruction,
@@ -572,7 +588,9 @@ bool InstructionIsFunctionParameter(opt::Instruction* instruction,
 }
 
 uint32_t GetTypeId(opt::IRContext* context, uint32_t result_id) {
-  return context->get_def_use_mgr()->GetDef(result_id)->type_id();
+  const auto* inst = context->get_def_use_mgr()->GetDef(result_id);
+  assert(inst && "|result_id| is invalid");
+  return inst->type_id();
 }
 
 uint32_t GetPointeeTypeIdFromPointerType(opt::Instruction* pointer_type_inst) {
@@ -1131,7 +1149,7 @@ uint32_t MaybeGetCompositeConstant(
     if (inst.opcode() == SpvOpConstantComposite &&
         inst.type_id() == composite_type_id &&
         transformation_context.GetFactManager()->IdIsIrrelevant(
-            inst.result_id()) == is_irrelevant &&
+            inst.result_id(), ir_context) == is_irrelevant &&
         inst.NumInOperands() == component_ids.size()) {
       bool is_match = true;
 
@@ -1211,7 +1229,7 @@ uint32_t MaybeGetBoolConstant(
       if (inst.opcode() == (value ? SpvOpConstantTrue : SpvOpConstantFalse) &&
           inst.type_id() == type_id &&
           transformation_context.GetFactManager()->IdIsIrrelevant(
-              inst.result_id()) == is_irrelevant) {
+              inst.result_id(), ir_context) == is_irrelevant) {
         return inst.result_id();
       }
     }
@@ -1517,6 +1535,118 @@ bool SplittingBeforeInstructionSeparatesOpSampledImageDefinitionFromUse(
 
   // No usage that would be separated from the definition has been found.
   return false;
+}
+
+bool InstructionHasNoSideEffects(const opt::Instruction& instruction) {
+  switch (instruction.opcode()) {
+    case SpvOpUndef:
+    case SpvOpAccessChain:
+    case SpvOpInBoundsAccessChain:
+    case SpvOpArrayLength:
+    case SpvOpVectorExtractDynamic:
+    case SpvOpVectorInsertDynamic:
+    case SpvOpVectorShuffle:
+    case SpvOpCompositeConstruct:
+    case SpvOpCompositeExtract:
+    case SpvOpCompositeInsert:
+    case SpvOpCopyObject:
+    case SpvOpTranspose:
+    case SpvOpConvertFToU:
+    case SpvOpConvertFToS:
+    case SpvOpConvertSToF:
+    case SpvOpConvertUToF:
+    case SpvOpUConvert:
+    case SpvOpSConvert:
+    case SpvOpFConvert:
+    case SpvOpQuantizeToF16:
+    case SpvOpSatConvertSToU:
+    case SpvOpSatConvertUToS:
+    case SpvOpBitcast:
+    case SpvOpSNegate:
+    case SpvOpFNegate:
+    case SpvOpIAdd:
+    case SpvOpFAdd:
+    case SpvOpISub:
+    case SpvOpFSub:
+    case SpvOpIMul:
+    case SpvOpFMul:
+    case SpvOpUDiv:
+    case SpvOpSDiv:
+    case SpvOpFDiv:
+    case SpvOpUMod:
+    case SpvOpSRem:
+    case SpvOpSMod:
+    case SpvOpFRem:
+    case SpvOpFMod:
+    case SpvOpVectorTimesScalar:
+    case SpvOpMatrixTimesScalar:
+    case SpvOpVectorTimesMatrix:
+    case SpvOpMatrixTimesVector:
+    case SpvOpMatrixTimesMatrix:
+    case SpvOpOuterProduct:
+    case SpvOpDot:
+    case SpvOpIAddCarry:
+    case SpvOpISubBorrow:
+    case SpvOpUMulExtended:
+    case SpvOpSMulExtended:
+    case SpvOpAny:
+    case SpvOpAll:
+    case SpvOpIsNan:
+    case SpvOpIsInf:
+    case SpvOpIsFinite:
+    case SpvOpIsNormal:
+    case SpvOpSignBitSet:
+    case SpvOpLessOrGreater:
+    case SpvOpOrdered:
+    case SpvOpUnordered:
+    case SpvOpLogicalEqual:
+    case SpvOpLogicalNotEqual:
+    case SpvOpLogicalOr:
+    case SpvOpLogicalAnd:
+    case SpvOpLogicalNot:
+    case SpvOpSelect:
+    case SpvOpIEqual:
+    case SpvOpINotEqual:
+    case SpvOpUGreaterThan:
+    case SpvOpSGreaterThan:
+    case SpvOpUGreaterThanEqual:
+    case SpvOpSGreaterThanEqual:
+    case SpvOpULessThan:
+    case SpvOpSLessThan:
+    case SpvOpULessThanEqual:
+    case SpvOpSLessThanEqual:
+    case SpvOpFOrdEqual:
+    case SpvOpFUnordEqual:
+    case SpvOpFOrdNotEqual:
+    case SpvOpFUnordNotEqual:
+    case SpvOpFOrdLessThan:
+    case SpvOpFUnordLessThan:
+    case SpvOpFOrdGreaterThan:
+    case SpvOpFUnordGreaterThan:
+    case SpvOpFOrdLessThanEqual:
+    case SpvOpFUnordLessThanEqual:
+    case SpvOpFOrdGreaterThanEqual:
+    case SpvOpFUnordGreaterThanEqual:
+    case SpvOpShiftRightLogical:
+    case SpvOpShiftRightArithmetic:
+    case SpvOpShiftLeftLogical:
+    case SpvOpBitwiseOr:
+    case SpvOpBitwiseXor:
+    case SpvOpBitwiseAnd:
+    case SpvOpNot:
+    case SpvOpBitFieldInsert:
+    case SpvOpBitFieldSExtract:
+    case SpvOpBitFieldUExtract:
+    case SpvOpBitReverse:
+    case SpvOpBitCount:
+    case SpvOpCopyLogical:
+    case SpvOpPhi:
+    case SpvOpPtrEqual:
+    case SpvOpPtrNotEqual:
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace fuzzerutil

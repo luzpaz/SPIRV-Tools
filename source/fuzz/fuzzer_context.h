@@ -106,14 +106,23 @@ class FuzzerContext {
 
   // Probabilities associated with applying various transformations.
   // Keep them in alphabetical order.
+  uint32_t GetChanceOfAcceptingRepeatedPassRecommendation() {
+    return chance_of_accepting_repeated_pass_recommendation_;
+  }
   uint32_t GetChanceOfAddingAccessChain() {
     return chance_of_adding_access_chain_;
+  }
+  uint32_t GetChanceOfAddingAnotherPassToPassLoop() {
+    return chance_of_adding_another_pass_to_pass_loop_;
   }
   uint32_t GetChanceOfAddingAnotherStructField() {
     return chance_of_adding_another_struct_field_;
   }
   uint32_t GetChanceOfAddingArrayOrStructType() {
     return chance_of_adding_array_or_struct_type_;
+  }
+  uint32_t GetChanceOfAddingBitInstructionSynonym() {
+    return chance_of_adding_bit_instruction_synonym_;
   }
   uint32_t GetChanceOfAddingBothBranchesWhenReplacingOpSelect() {
     return chance_of_adding_both_branches_when_replacing_opselect_;
@@ -197,6 +206,12 @@ class FuzzerContext {
   uint32_t GetChanceOfCopyingObject() { return chance_of_copying_object_; }
   uint32_t GetChanceOfDonatingAdditionalModule() {
     return chance_of_donating_additional_module_;
+  }
+  uint32_t GetChanceOfDuplicatingRegionWithSelection() {
+    return chance_of_duplicating_region_with_selection_;
+  }
+  uint32_t GetChanceOfFlatteningConditionalBranch() {
+    return chance_of_flattening_conditional_branch_;
   }
   uint32_t GetChanceOfGoingDeeperToInsertInComposite() {
     return chance_of_going_deeper_to_insert_in_composite_;
@@ -370,9 +385,12 @@ class FuzzerContext {
 
   // Probabilities associated with applying various transformations.
   // Keep them in alphabetical order.
+  uint32_t chance_of_accepting_repeated_pass_recommendation_;
   uint32_t chance_of_adding_access_chain_;
+  uint32_t chance_of_adding_another_pass_to_pass_loop_;
   uint32_t chance_of_adding_another_struct_field_;
   uint32_t chance_of_adding_array_or_struct_type_;
+  uint32_t chance_of_adding_bit_instruction_synonym_;
   uint32_t chance_of_adding_both_branches_when_replacing_opselect_;
   uint32_t chance_of_adding_composite_insert_;
   uint32_t chance_of_adding_copy_memory_;
@@ -406,6 +424,8 @@ class FuzzerContext {
   uint32_t chance_of_constructing_composite_;
   uint32_t chance_of_copying_object_;
   uint32_t chance_of_donating_additional_module_;
+  uint32_t chance_of_duplicating_region_with_selection_;
+  uint32_t chance_of_flattening_conditional_branch_;
   uint32_t chance_of_going_deeper_to_insert_in_composite_;
   uint32_t chance_of_going_deeper_when_making_access_chain_;
   uint32_t chance_of_inlining_function_;

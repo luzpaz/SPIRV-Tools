@@ -23,10 +23,16 @@ namespace {
 // Default <minimum, maximum> pairs of probabilities for applying various
 // transformations. All values are percentages. Keep them in alphabetical order.
 
+const std::pair<uint32_t, uint32_t>
+    kChanceOfAcceptingRepeatedPassRecommendation = {70, 100};
 const std::pair<uint32_t, uint32_t> kChanceOfAddingAccessChain = {5, 50};
+const std::pair<uint32_t, uint32_t> kChanceOfAddingAnotherPassToPassLoop = {85,
+                                                                            95};
 const std::pair<uint32_t, uint32_t> kChanceOfAddingAnotherStructField = {20,
                                                                          90};
 const std::pair<uint32_t, uint32_t> kChanceOfAddingArrayOrStructType = {20, 90};
+const std::pair<uint32_t, uint32_t> kChanceOfAddingBitInstructionSynonym = {20,
+                                                                            90};
 const std::pair<uint32_t, uint32_t>
     kChanceOfAddingBothBranchesWhenReplacingOpSelect = {40, 60};
 const std::pair<uint32_t, uint32_t> kChanceOfAddingCompositeInsert = {20, 50};
@@ -70,6 +76,10 @@ const std::pair<uint32_t, uint32_t> kChanceOfChoosingWorkgroupStorageClass = {
 const std::pair<uint32_t, uint32_t> kChanceOfConstructingComposite = {20, 50};
 const std::pair<uint32_t, uint32_t> kChanceOfCopyingObject = {20, 50};
 const std::pair<uint32_t, uint32_t> kChanceOfDonatingAdditionalModule = {5, 50};
+const std::pair<uint32_t, uint32_t> kChanceOfDuplicatingRegionWithSelection = {
+    20, 50};
+const std::pair<uint32_t, uint32_t> kChanceOfFlatteningConditionalBranch = {45,
+                                                                            95};
 const std::pair<uint32_t, uint32_t> kChanceOfGoingDeeperToInsertInComposite = {
     30, 70};
 const std::pair<uint32_t, uint32_t> kChanceOfGoingDeeperWhenMakingAccessChain =
@@ -162,12 +172,18 @@ FuzzerContext::FuzzerContext(RandomGenerator* random_generator,
           kGetDefaultMaxNumberOfParametersReplacedWithStruct),
       go_deeper_in_constant_obfuscation_(
           kDefaultGoDeeperInConstantObfuscation) {
+  chance_of_accepting_repeated_pass_recommendation_ =
+      ChooseBetweenMinAndMax(kChanceOfAcceptingRepeatedPassRecommendation);
   chance_of_adding_access_chain_ =
       ChooseBetweenMinAndMax(kChanceOfAddingAccessChain);
+  chance_of_adding_another_pass_to_pass_loop_ =
+      ChooseBetweenMinAndMax(kChanceOfAddingAnotherPassToPassLoop);
   chance_of_adding_another_struct_field_ =
       ChooseBetweenMinAndMax(kChanceOfAddingAnotherStructField);
   chance_of_adding_array_or_struct_type_ =
       ChooseBetweenMinAndMax(kChanceOfAddingArrayOrStructType);
+  chance_of_adding_bit_instruction_synonym_ =
+      ChooseBetweenMinAndMax(kChanceOfAddingBitInstructionSynonym);
   chance_of_adding_both_branches_when_replacing_opselect_ =
       ChooseBetweenMinAndMax(kChanceOfAddingBothBranchesWhenReplacingOpSelect);
   chance_of_adding_composite_insert_ =
@@ -230,6 +246,10 @@ FuzzerContext::FuzzerContext(RandomGenerator* random_generator,
   chance_of_copying_object_ = ChooseBetweenMinAndMax(kChanceOfCopyingObject);
   chance_of_donating_additional_module_ =
       ChooseBetweenMinAndMax(kChanceOfDonatingAdditionalModule);
+  chance_of_duplicating_region_with_selection_ =
+      ChooseBetweenMinAndMax(kChanceOfDuplicatingRegionWithSelection);
+  chance_of_flattening_conditional_branch_ =
+      ChooseBetweenMinAndMax(kChanceOfFlatteningConditionalBranch);
   chance_of_going_deeper_to_insert_in_composite_ =
       ChooseBetweenMinAndMax(kChanceOfGoingDeeperToInsertInComposite);
   chance_of_going_deeper_when_making_access_chain_ =

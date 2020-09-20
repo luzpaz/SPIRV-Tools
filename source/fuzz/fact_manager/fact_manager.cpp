@@ -105,8 +105,9 @@ bool FactManager::AddFact(const fuzz::protobufs::Fact& fact,
       return constant_uniform_facts_.AddFact(fact.constant_uniform_fact(),
                                              context);
     case protobufs::Fact::kDataSynonymFact:
-      data_synonym_and_id_equation_facts_.AddFact(fact.data_synonym_fact(),
-                                                  context);
+      data_synonym_and_id_equation_facts_.AddFact(
+          fact.data_synonym_fact(), dead_block_facts_, irrelevant_value_facts_,
+          context);
       return true;
     case protobufs::Fact::kBlockIsDeadFact:
       dead_block_facts_.AddFact(fact.block_is_dead_fact());
@@ -126,7 +127,8 @@ void FactManager::AddFactDataSynonym(const protobufs::DataDescriptor& data1,
   protobufs::FactDataSynonym fact;
   *fact.mutable_data1() = data1;
   *fact.mutable_data2() = data2;
-  data_synonym_and_id_equation_facts_.AddFact(fact, context);
+  data_synonym_and_id_equation_facts_.AddFact(fact, dead_block_facts_,
+                                              irrelevant_value_facts_, context);
 }
 
 std::vector<uint32_t> FactManager::GetConstantsAvailableFromUniformsForType(
@@ -172,7 +174,7 @@ FactManager::GetSynonymsForDataDescriptor(
 
 std::vector<const protobufs::DataDescriptor*> FactManager::GetSynonymsForId(
     uint32_t id) const {
-  return GetSynonymsForDataDescriptor(MakeDataDescriptor(id, {}));
+  return data_synonym_and_id_equation_facts_.GetSynonymsForId(id);
 }
 
 bool FactManager::IsSynonymous(
@@ -206,24 +208,31 @@ bool FactManager::PointeeValueIsIrrelevant(uint32_t pointer_id) const {
   return irrelevant_value_facts_.PointeeValueIsIrrelevant(pointer_id);
 }
 
-bool FactManager::IdIsIrrelevant(uint32_t result_id) const {
-  return irrelevant_value_facts_.IdIsIrrelevant(result_id);
+bool FactManager::IdIsIrrelevant(uint32_t result_id,
+                                 opt::IRContext* context) const {
+  return irrelevant_value_facts_.IdIsIrrelevant(result_id, dead_block_facts_,
+                                                context);
 }
 
-const std::unordered_set<uint32_t>& FactManager::GetIrrelevantIds() const {
-  return irrelevant_value_facts_.GetIrrelevantIds();
+std::unordered_set<uint32_t> FactManager::GetIrrelevantIds(
+    opt::IRContext* context) const {
+  return irrelevant_value_facts_.GetIrrelevantIds(dead_block_facts_, context);
 }
 
-void FactManager::AddFactValueOfPointeeIsIrrelevant(uint32_t pointer_id) {
+void FactManager::AddFactValueOfPointeeIsIrrelevant(uint32_t pointer_id,
+                                                    opt::IRContext* context) {
   protobufs::FactPointeeValueIsIrrelevant fact;
   fact.set_pointer_id(pointer_id);
-  irrelevant_value_facts_.AddFact(fact);
+  irrelevant_value_facts_.AddFact(fact, data_synonym_and_id_equation_facts_,
+                                  context);
 }
 
-void FactManager::AddFactIdIsIrrelevant(uint32_t result_id) {
+void FactManager::AddFactIdIsIrrelevant(uint32_t result_id,
+                                        opt::IRContext* context) {
   protobufs::FactIdIsIrrelevant fact;
   fact.set_result_id(result_id);
-  irrelevant_value_facts_.AddFact(fact);
+  irrelevant_value_facts_.AddFact(fact, data_synonym_and_id_equation_facts_,
+                                  context);
 }
 
 void FactManager::AddFactIdEquation(uint32_t lhs_id, SpvOp opcode,
@@ -235,7 +244,8 @@ void FactManager::AddFactIdEquation(uint32_t lhs_id, SpvOp opcode,
   for (auto an_rhs_id : rhs_id) {
     fact.add_rhs_id(an_rhs_id);
   }
-  data_synonym_and_id_equation_facts_.AddFact(fact, context);
+  data_synonym_and_id_equation_facts_.AddFact(fact, dead_block_facts_,
+                                              irrelevant_value_facts_, context);
 }
 
 void FactManager::ComputeClosureOfFacts(

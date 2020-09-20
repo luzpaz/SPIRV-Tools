@@ -18,9 +18,16 @@ if(SPIRV_BUILD_FUZZER)
 
   set(PROTOBUF_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/protobufs/spvtoolsfuzz.proto)
 
+  set(
+        SPIRV_FUZZ_PROTOC_COMMAND
+        "protobuf::protoc"
+        CACHE
+        STRING
+        "The command to invoke the protobuf compiler (protoc). By default it is the protobufs::protoc CMake target. It should be overridden when cross-compiling, such as for Android.")
+
   add_custom_command(
         OUTPUT protobufs/spvtoolsfuzz.pb.cc protobufs/spvtoolsfuzz.pb.h
-        COMMAND protobuf::protoc
+        COMMAND "${SPIRV_FUZZ_PROTOC_COMMAND}"
         -I=${CMAKE_CURRENT_SOURCE_DIR}/protobufs
         --cpp_out=protobufs
         ${PROTOBUF_SOURCE}
@@ -30,6 +37,7 @@ if(SPIRV_BUILD_FUZZER)
 
   set(SPIRV_TOOLS_FUZZ_SOURCES
         call_graph.h
+        comparator_deep_blocks_first.h
         counter_overflow_id_source.h
         data_descriptor.h
         equivalence_relation.h
@@ -44,6 +52,7 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_context.h
         fuzzer_pass.h
         fuzzer_pass_add_access_chains.h
+        fuzzer_pass_add_bit_instruction_synonyms.h
         fuzzer_pass_add_composite_inserts.h
         fuzzer_pass_add_composite_types.h
         fuzzer_pass_add_copy_memory.h
@@ -73,6 +82,8 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_construct_composites.h
         fuzzer_pass_copy_objects.h
         fuzzer_pass_donate_modules.h
+        fuzzer_pass_duplicate_regions_with_selections.h
+        fuzzer_pass_flatten_conditional_branches.h
         fuzzer_pass_inline_functions.h
         fuzzer_pass_invert_comparison_operators.h
         fuzzer_pass_interchange_signedness_of_integer_operands.h
@@ -107,6 +118,13 @@ if(SPIRV_BUILD_FUZZER)
         instruction_descriptor.h
         instruction_message.h
         overflow_id_source.h
+        pass_management/repeated_pass_instances.h
+        pass_management/repeated_pass_manager.h
+        pass_management/repeated_pass_manager_looped_with_recommendations.h
+        pass_management/repeated_pass_manager_random_with_recommendations.h
+        pass_management/repeated_pass_manager_simple.h
+        pass_management/repeated_pass_recommender.h
+        pass_management/repeated_pass_recommender_standard.h
         protobufs/spirvfuzz_protobufs.h
         pseudo_random_generator.h
         random_generator.h
@@ -114,6 +132,7 @@ if(SPIRV_BUILD_FUZZER)
         shrinker.h
         transformation.h
         transformation_access_chain.h
+        transformation_add_bit_instruction_synonym.h
         transformation_add_constant_boolean.h
         transformation_add_constant_composite.h
         transformation_add_constant_null.h
@@ -149,7 +168,9 @@ if(SPIRV_BUILD_FUZZER)
         transformation_composite_insert.h
         transformation_compute_data_synonym_fact_closure.h
         transformation_context.h
+        transformation_duplicate_region_with_selection.h
         transformation_equation_instruction.h
+        transformation_flatten_conditional_branch.h
         transformation_function_call.h
         transformation_inline_function.h
         transformation_invert_comparison_operator.h
@@ -205,6 +226,7 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_context.cpp
         fuzzer_pass.cpp
         fuzzer_pass_add_access_chains.cpp
+        fuzzer_pass_add_bit_instruction_synonyms.cpp
         fuzzer_pass_add_composite_inserts.cpp
         fuzzer_pass_add_composite_types.cpp
         fuzzer_pass_add_copy_memory.cpp
@@ -234,6 +256,8 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_construct_composites.cpp
         fuzzer_pass_copy_objects.cpp
         fuzzer_pass_donate_modules.cpp
+        fuzzer_pass_duplicate_regions_with_selections.cpp
+        fuzzer_pass_flatten_conditional_branches.cpp
         fuzzer_pass_inline_functions.cpp
         fuzzer_pass_invert_comparison_operators.cpp
         fuzzer_pass_interchange_signedness_of_integer_operands.cpp
@@ -268,12 +292,19 @@ if(SPIRV_BUILD_FUZZER)
         instruction_descriptor.cpp
         instruction_message.cpp
         overflow_id_source.cpp
+        pass_management/repeated_pass_manager.cpp
+        pass_management/repeated_pass_manager_looped_with_recommendations.cpp
+        pass_management/repeated_pass_manager_random_with_recommendations.cpp
+        pass_management/repeated_pass_manager_simple.cpp
+        pass_management/repeated_pass_recommender.cpp
+        pass_management/repeated_pass_recommender_standard.cpp
         pseudo_random_generator.cpp
         random_generator.cpp
         replayer.cpp
         shrinker.cpp
         transformation.cpp
         transformation_access_chain.cpp
+        transformation_add_bit_instruction_synonym.cpp
         transformation_add_constant_boolean.cpp
         transformation_add_constant_composite.cpp
         transformation_add_constant_null.cpp
@@ -309,8 +340,9 @@ if(SPIRV_BUILD_FUZZER)
         transformation_composite_insert.cpp
         transformation_compute_data_synonym_fact_closure.cpp
         transformation_context.cpp
-        transformation_replace_opselect_with_conditional_branch.cpp
+        transformation_duplicate_region_with_selection.cpp
         transformation_equation_instruction.cpp
+        transformation_flatten_conditional_branch.cpp
         transformation_function_call.cpp
         transformation_inline_function.cpp
         transformation_invert_comparison_operator.cpp
@@ -336,6 +368,7 @@ if(SPIRV_BUILD_FUZZER)
         transformation_replace_linear_algebra_instruction.cpp
         transformation_replace_load_store_with_copy_memory.cpp
         transformation_replace_opphi_id_from_dead_predecessor.cpp
+        transformation_replace_opselect_with_conditional_branch.cpp
         transformation_replace_parameter_with_global.cpp
         transformation_replace_params_with_struct.cpp
         transformation_set_function_control.cpp
@@ -362,7 +395,6 @@ if(SPIRV_BUILD_FUZZER)
   add_library(SPIRV-Tools-fuzz ${SPIRV_TOOLS_FUZZ_SOURCES})
 
   spvtools_default_compile_options(SPIRV-Tools-fuzz)
-  target_compile_definitions(SPIRV-Tools-fuzz PUBLIC -DGOOGLE_PROTOBUF_NO_RTTI -DGOOGLE_PROTOBUF_USE_UNALIGNED=0)
 
   # Compilation of the auto-generated protobuf source file will yield warnings,
   # which we have no control over and thus wish to ignore.

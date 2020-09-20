@@ -24,24 +24,46 @@ namespace spvtools {
 namespace fuzz {
 namespace fact_manager {
 
+// Forward reference to the DataSynonymAndIdEquationFacts class.
+class DataSynonymAndIdEquationFacts;
+// Forward reference to the DeadBlockFacts class.
+class DeadBlockFacts;
+
 // The purpose of this class is to group the fields and data used to represent
 // facts about various irrelevant values in the module.
 class IrrelevantValueFacts {
  public:
   // See method in FactManager which delegates to this method.
-  void AddFact(const protobufs::FactPointeeValueIsIrrelevant& fact);
+  // |data_synonym_and_id_equation_facts| and |context| are passed for
+  // consistency checks.
+  void AddFact(
+      const protobufs::FactPointeeValueIsIrrelevant& fact,
+      const DataSynonymAndIdEquationFacts& data_synonym_and_id_equation_facts,
+      opt::IRContext* context);
 
   // See method in FactManager which delegates to this method.
-  void AddFact(const protobufs::FactIdIsIrrelevant& fact);
+  // |data_synonym_and_id_equation_facts| and |context| are passed for
+  // consistency checks.
+  void AddFact(
+      const protobufs::FactIdIsIrrelevant& fact,
+      const DataSynonymAndIdEquationFacts& data_synonym_and_id_equation_facts,
+      opt::IRContext* context);
 
   // See method in FactManager which delegates to this method.
   bool PointeeValueIsIrrelevant(uint32_t pointer_id) const;
 
   // See method in FactManager which delegates to this method.
-  bool IdIsIrrelevant(uint32_t pointer_id) const;
+  // |dead_block_facts| and |context| are passed to check whether |result_id| is
+  // declared inside a dead block, in which case it is irrelevant.
+  bool IdIsIrrelevant(uint32_t result_id,
+                      const DeadBlockFacts& dead_block_facts,
+                      opt::IRContext* context) const;
 
   // See method in FactManager which delegates to this method.
-  const std::unordered_set<uint32_t>& GetIrrelevantIds() const;
+  // |dead_block_facts| and |context| are passed to also add all the ids
+  // declared in dead blocks to the set of irrelevant ids.
+  std::unordered_set<uint32_t> GetIrrelevantIds(
+      const DeadBlockFacts& dead_block_facts, opt::IRContext* context) const;
 
  private:
   std::unordered_set<uint32_t> pointers_to_irrelevant_pointees_ids_;

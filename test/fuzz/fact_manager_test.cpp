@@ -16,6 +16,7 @@
 
 #include <limits>
 
+#include "source/fuzz/transformation_merge_blocks.h"
 #include "source/fuzz/uniform_buffer_element_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -871,6 +872,78 @@ TEST(FactManagerTest, CorollaryConversionFacts) {
                                         MakeDataDescriptor(29, {})));
 }
 
+TEST(FactManagerTest, HandlesCorollariesWithInvalidIds) {
+  std::string shader = R"(
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %12 "main"
+               OpExecutionMode %12 OriginUpperLeft
+               OpSource ESSL 310
+          %2 = OpTypeVoid
+          %3 = OpTypeFunction %2
+          %6 = OpTypeFloat 32
+          %8 = OpTypeInt 32 1
+          %9 = OpConstant %8 3
+         %12 = OpFunction %2 None %3
+         %13 = OpLabel
+         %14 = OpConvertSToF %6 %9
+               OpBranch %16
+         %16 = OpLabel
+         %17 = OpPhi %6 %14 %13
+         %15 = OpConvertSToF %6 %9
+         %18 = OpConvertSToF %6 %9
+               OpReturn
+               OpFunctionEnd
+  )";
+
+  const auto env = SPV_ENV_UNIVERSAL_1_3;
+  const auto consumer = nullptr;
+  const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
+  ASSERT_TRUE(IsValid(env, context.get()));
+
+  FactManager fact_manager;
+
+  // Add required facts.
+  fact_manager.AddFactIdEquation(14, SpvOpConvertSToF, {9}, context.get());
+  fact_manager.AddFactDataSynonym(MakeDataDescriptor(14, {}),
+                                  MakeDataDescriptor(17, {}), context.get());
+
+  // Apply TransformationMergeBlocks which will remove %17 from the module.
+  spvtools::ValidatorOptions validator_options;
+  TransformationContext transformation_context(&fact_manager,
+                                               validator_options);
+  TransformationMergeBlocks transformation(16);
+  ASSERT_TRUE(
+      transformation.IsApplicable(context.get(), transformation_context));
+  transformation.Apply(context.get(), &transformation_context);
+  ASSERT_TRUE(IsValid(env, context.get()));
+
+  ASSERT_EQ(context->get_def_use_mgr()->GetDef(17), nullptr);
+
+  // Add another equation.
+  fact_manager.AddFactIdEquation(15, SpvOpConvertSToF, {9}, context.get());
+
+  // Check that two ids are synonymous even though one of them doesn't exist in
+  // the module (%17).
+  ASSERT_TRUE(fact_manager.IsSynonymous(MakeDataDescriptor(15, {}),
+                                        MakeDataDescriptor(17, {})));
+  ASSERT_TRUE(fact_manager.IsSynonymous(MakeDataDescriptor(15, {}),
+                                        MakeDataDescriptor(14, {})));
+
+  // Remove some instructions from the module. At this point, the equivalence
+  // class of %14 has no valid members.
+  ASSERT_TRUE(context->KillDef(14));
+  ASSERT_TRUE(context->KillDef(15));
+
+  fact_manager.AddFactIdEquation(18, SpvOpConvertSToF, {9}, context.get());
+
+  // We don't create synonyms if at least one of the equivalence classes has no
+  // valid members.
+  ASSERT_FALSE(fact_manager.IsSynonymous(MakeDataDescriptor(14, {}),
+                                         MakeDataDescriptor(18, {})));
+}
+
 TEST(FactManagerTest, LogicalNotEquationFacts) {
   std::string shader = R"(
                OpCapability Shader
@@ -1367,13 +1440,13 @@ TEST(FactManagerTest, IdIsIrrelevant) {
 
   FactManager fact_manager;
 
-  ASSERT_FALSE(fact_manager.IdIsIrrelevant(12));
-  ASSERT_FALSE(fact_manager.IdIsIrrelevant(13));
+  ASSERT_FALSE(fact_manager.IdIsIrrelevant(12, context.get()));
+  ASSERT_FALSE(fact_manager.IdIsIrrelevant(13, context.get()));
 
-  fact_manager.AddFactIdIsIrrelevant(12);
+  fact_manager.AddFactIdIsIrrelevant(12, context.get());
 
-  ASSERT_TRUE(fact_manager.IdIsIrrelevant(12));
-  ASSERT_FALSE(fact_manager.IdIsIrrelevant(13));
+  ASSERT_TRUE(fact_manager.IdIsIrrelevant(12, context.get()));
+  ASSERT_FALSE(fact_manager.IdIsIrrelevant(13, context.get()));
 }
 
 TEST(FactManagerTest, GetIrrelevantIds) {
@@ -1403,20 +1476,136 @@ TEST(FactManagerTest, GetIrrelevantIds) {
 
   FactManager fact_manager;
 
-  ASSERT_TRUE(fact_manager.GetIrrelevantIds() ==
-              std::unordered_set<uint32_t>({}));
+  ASSERT_EQ(fact_manager.GetIrrelevantIds(context.get()),
+            std::unordered_set<uint32_t>({}));
 
-  fact_manager.AddFactIdIsIrrelevant(12);
+  fact_manager.AddFactIdIsIrrelevant(12, context.get());
 
-  ASSERT_TRUE(fact_manager.GetIrrelevantIds() ==
-              std::unordered_set<uint32_t>({12}));
+  ASSERT_EQ(fact_manager.GetIrrelevantIds(context.get()),
+            std::unordered_set<uint32_t>({12}));
 
-  fact_manager.AddFactIdIsIrrelevant(13);
+  fact_manager.AddFactIdIsIrrelevant(13, context.get());
 
-  ASSERT_TRUE(fact_manager.GetIrrelevantIds() ==
-              std::unordered_set<uint32_t>({12, 13}));
+  ASSERT_EQ(fact_manager.GetIrrelevantIds(context.get()),
+            std::unordered_set<uint32_t>({12, 13}));
 }
 
+TEST(FactManagerTest, BlockIsDead) {
+  std::string shader = R"(
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %2 "main"
+               OpExecutionMode %2 OriginUpperLeft
+               OpSource ESSL 310
+          %3 = OpTypeVoid
+          %4 = OpTypeFunction %3
+          %5 = OpTypeBool
+          %6 = OpConstantTrue %5
+          %7 = OpTypeInt 32 1
+          %8 = OpTypePointer Function %7
+          %2 = OpFunction %3 None %4
+          %9 = OpLabel
+               OpSelectionMerge %10 None
+               OpBranchConditional %6 %11 %12
+         %11 = OpLabel
+               OpBranch %10
+         %12 = OpLabel
+               OpBranch %10
+         %10 = OpLabel
+               OpReturn
+               OpFunctionEnd
+)";
+
+  const auto env = SPV_ENV_UNIVERSAL_1_5;
+  const auto consumer = nullptr;
+  const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
+  ASSERT_TRUE(IsValid(env, context.get()));
+
+  FactManager fact_manager;
+
+  ASSERT_FALSE(fact_manager.BlockIsDead(9));
+  ASSERT_FALSE(fact_manager.BlockIsDead(11));
+  ASSERT_FALSE(fact_manager.BlockIsDead(12));
+
+  fact_manager.AddFactBlockIsDead(12);
+
+  ASSERT_FALSE(fact_manager.BlockIsDead(9));
+  ASSERT_FALSE(fact_manager.BlockIsDead(11));
+  ASSERT_TRUE(fact_manager.BlockIsDead(12));
+}
+
+TEST(FactManagerTest, IdsFromDeadBlocksAreIrrelevant) {
+  std::string shader = R"(
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %2 "main"
+               OpExecutionMode %2 OriginUpperLeft
+               OpSource ESSL 310
+          %3 = OpTypeVoid
+          %4 = OpTypeFunction %3
+          %5 = OpTypeBool
+          %6 = OpConstantTrue %5
+          %7 = OpTypeInt 32 1
+          %8 = OpTypePointer Function %7
+          %9 = OpConstant %7 1
+          %2 = OpFunction %3 None %4
+         %10 = OpLabel
+         %11 = OpVariable %8 Function
+               OpSelectionMerge %12 None
+               OpBranchConditional %6 %13 %14
+         %13 = OpLabel
+               OpBranch %12
+         %14 = OpLabel
+         %15 = OpCopyObject %8 %11
+         %16 = OpCopyObject %7 %9
+         %17 = OpFunctionCall %3 %18
+               OpBranch %12
+         %12 = OpLabel
+               OpReturn
+               OpFunctionEnd
+         %18 = OpFunction %3 None %4
+         %19 = OpLabel
+         %20 = OpVariable %8 Function
+         %21 = OpCopyObject %7 %9
+               OpReturn
+               OpFunctionEnd
+)";
+
+  const auto env = SPV_ENV_UNIVERSAL_1_5;
+  const auto consumer = nullptr;
+  const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
+  ASSERT_TRUE(IsValid(env, context.get()));
+
+  FactManager fact_manager;
+
+  ASSERT_FALSE(fact_manager.BlockIsDead(14));
+  ASSERT_FALSE(fact_manager.BlockIsDead(19));
+
+  // Initially no id is irrelevant.
+  ASSERT_FALSE(fact_manager.IdIsIrrelevant(16, context.get()));
+  ASSERT_FALSE(fact_manager.IdIsIrrelevant(17, context.get()));
+  ASSERT_EQ(fact_manager.GetIrrelevantIds(context.get()),
+            std::unordered_set<uint32_t>({}));
+
+  fact_manager.AddFactBlockIsDead(14);
+
+  // %16 and %17 should now be considered irrelevant.
+  ASSERT_TRUE(fact_manager.IdIsIrrelevant(16, context.get()));
+  ASSERT_TRUE(fact_manager.IdIsIrrelevant(17, context.get()));
+  ASSERT_EQ(fact_manager.GetIrrelevantIds(context.get()),
+            std::unordered_set<uint32_t>({16, 17}));
+
+  // Similarly for %21.
+  ASSERT_FALSE(fact_manager.IdIsIrrelevant(21, context.get()));
+
+  fact_manager.AddFactBlockIsDead(19);
+
+  ASSERT_TRUE(fact_manager.IdIsIrrelevant(21, context.get()));
+  ASSERT_EQ(fact_manager.GetIrrelevantIds(context.get()),
+            std::unordered_set<uint32_t>({16, 17, 21}));
+}
 }  // namespace
 }  // namespace fuzz
 }  // namespace spvtools
