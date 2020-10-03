@@ -36,6 +36,7 @@ if(SPIRV_BUILD_FUZZER)
   )
 
   set(SPIRV_TOOLS_FUZZ_SOURCES
+        added_function_reducer.h
         call_graph.h
         comparator_deep_blocks_first.h
         counter_overflow_id_source.h
@@ -63,15 +64,16 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_add_function_calls.h
         fuzzer_pass_add_global_variables.h
         fuzzer_pass_add_image_sample_unused_components.h
-        fuzzer_pass_add_synonyms.h
         fuzzer_pass_add_loads.h
         fuzzer_pass_add_local_variables.h
         fuzzer_pass_add_loop_preheaders.h
+        fuzzer_pass_add_loops_to_create_int_constant_synonyms.h
         fuzzer_pass_add_no_contraction_decorations.h
         fuzzer_pass_add_opphi_synonyms.h
         fuzzer_pass_add_parameters.h
         fuzzer_pass_add_relaxed_decorations.h
         fuzzer_pass_add_stores.h
+        fuzzer_pass_add_synonyms.h
         fuzzer_pass_add_vector_shuffle_instructions.h
         fuzzer_pass_adjust_branch_weights.h
         fuzzer_pass_adjust_function_controls.h
@@ -90,6 +92,7 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_interchange_zero_like_constants.h
         fuzzer_pass_make_vector_operations_dynamic.h
         fuzzer_pass_merge_blocks.h
+        fuzzer_pass_merge_function_returns.h
         fuzzer_pass_mutate_pointers.h
         fuzzer_pass_obfuscate_constants.h
         fuzzer_pass_outline_functions.h
@@ -113,6 +116,7 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_swap_commutable_operands.h
         fuzzer_pass_swap_conditional_branch_operands.h
         fuzzer_pass_toggle_access_chain_instruction.h
+        fuzzer_pass_wrap_regions_in_selections.h
         fuzzer_util.h
         id_use_descriptor.h
         instruction_descriptor.h
@@ -147,6 +151,7 @@ if(SPIRV_BUILD_FUZZER)
         transformation_add_image_sample_unused_components.h
         transformation_add_local_variable.h
         transformation_add_loop_preheader.h
+        transformation_add_loop_to_create_int_constant_synonym.h
         transformation_add_no_contraction_decoration.h
         transformation_add_opphi_synonym.h
         transformation_add_parameter.h
@@ -177,6 +182,7 @@ if(SPIRV_BUILD_FUZZER)
         transformation_load.h
         transformation_make_vector_operation_dynamic.h
         transformation_merge_blocks.h
+        transformation_merge_function_returns.h
         transformation_move_block_down.h
         transformation_move_instruction_down.h
         transformation_mutate_pointer.h
@@ -209,9 +215,11 @@ if(SPIRV_BUILD_FUZZER)
         transformation_swap_conditional_branch_operands.h
         transformation_toggle_access_chain_instruction.h
         transformation_vector_shuffle.h
+        transformation_wrap_region_in_selection.h
         uniform_buffer_element_descriptor.h
         ${CMAKE_CURRENT_BINARY_DIR}/protobufs/spvtoolsfuzz.pb.h
 
+        added_function_reducer.cpp
         call_graph.cpp
         counter_overflow_id_source.cpp
         data_descriptor.cpp
@@ -237,15 +245,16 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_add_function_calls.cpp
         fuzzer_pass_add_global_variables.cpp
         fuzzer_pass_add_image_sample_unused_components.cpp
-        fuzzer_pass_add_synonyms.cpp
         fuzzer_pass_add_loads.cpp
         fuzzer_pass_add_local_variables.cpp
         fuzzer_pass_add_loop_preheaders.cpp
+        fuzzer_pass_add_loops_to_create_int_constant_synonyms.cpp
         fuzzer_pass_add_no_contraction_decorations.cpp
         fuzzer_pass_add_opphi_synonyms.cpp
         fuzzer_pass_add_parameters.cpp
         fuzzer_pass_add_relaxed_decorations.cpp
         fuzzer_pass_add_stores.cpp
+        fuzzer_pass_add_synonyms.cpp
         fuzzer_pass_add_vector_shuffle_instructions.cpp
         fuzzer_pass_adjust_branch_weights.cpp
         fuzzer_pass_adjust_function_controls.cpp
@@ -264,6 +273,7 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_interchange_zero_like_constants.cpp
         fuzzer_pass_make_vector_operations_dynamic.cpp
         fuzzer_pass_merge_blocks.cpp
+        fuzzer_pass_merge_function_returns.cpp
         fuzzer_pass_mutate_pointers.cpp
         fuzzer_pass_obfuscate_constants.cpp
         fuzzer_pass_outline_functions.cpp
@@ -287,6 +297,7 @@ if(SPIRV_BUILD_FUZZER)
         fuzzer_pass_swap_commutable_operands.cpp
         fuzzer_pass_swap_conditional_branch_operands.cpp
         fuzzer_pass_toggle_access_chain_instruction.cpp
+        fuzzer_pass_wrap_regions_in_selections.cpp
         fuzzer_util.cpp
         id_use_descriptor.cpp
         instruction_descriptor.cpp
@@ -319,6 +330,7 @@ if(SPIRV_BUILD_FUZZER)
         transformation_add_image_sample_unused_components.cpp
         transformation_add_local_variable.cpp
         transformation_add_loop_preheader.cpp
+        transformation_add_loop_to_create_int_constant_synonym.cpp
         transformation_add_no_contraction_decoration.cpp
         transformation_add_opphi_synonym.cpp
         transformation_add_parameter.cpp
@@ -349,6 +361,7 @@ if(SPIRV_BUILD_FUZZER)
         transformation_load.cpp
         transformation_make_vector_operation_dynamic.cpp
         transformation_merge_blocks.cpp
+        transformation_merge_function_returns.cpp
         transformation_move_block_down.cpp
         transformation_move_instruction_down.cpp
         transformation_mutate_pointer.cpp
@@ -381,6 +394,7 @@ if(SPIRV_BUILD_FUZZER)
         transformation_swap_conditional_branch_operands.cpp
         transformation_toggle_access_chain_instruction.cpp
         transformation_vector_shuffle.cpp
+        transformation_wrap_region_in_selection.cpp
         uniform_buffer_element_descriptor.cpp
         ${CMAKE_CURRENT_BINARY_DIR}/protobufs/spvtoolsfuzz.pb.cc
         )
@@ -417,6 +431,7 @@ if(SPIRV_BUILD_FUZZER)
   target_link_libraries(SPIRV-Tools-fuzz
         PUBLIC ${SPIRV_TOOLS}-static
         PUBLIC SPIRV-Tools-opt
+        PUBLIC SPIRV-Tools-reduce
         PUBLIC protobuf::libprotobuf)
 
   set_property(TARGET SPIRV-Tools-fuzz PROPERTY FOLDER "SPIRV-Tools libraries")

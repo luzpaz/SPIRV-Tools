@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_add_relaxed_decoration.h"
+
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -66,12 +67,10 @@ TEST(TransformationAddRelaxedDecorationTest, BasicScenarios) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
-  fact_manager.AddFactBlockIsDead(100);
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+  transformation_context.GetFactManager()->AddFactBlockIsDead(100);
 
   // Invalid: 200 is not an id.
   ASSERT_FALSE(TransformationAddRelaxedDecoration(200).IsApplicable(
@@ -91,7 +90,8 @@ TEST(TransformationAddRelaxedDecorationTest, BasicScenarios) {
     TransformationAddRelaxedDecoration transformation(result_id);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 

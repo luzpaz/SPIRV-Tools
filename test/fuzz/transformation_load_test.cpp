@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_load.h"
+
 #include "source/fuzz/instruction_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -84,21 +85,19 @@ TEST(TransformationLoadTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      27, context.get());
+      27);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      11, context.get());
+      11);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      46, context.get());
+      46);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      16, context.get());
+      16);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      52, context.get());
+      52);
 
   transformation_context.GetFactManager()->AddFactBlockIsDead(36);
 
@@ -189,7 +188,8 @@ TEST(TransformationLoadTest, BasicTest) {
         100, 33, MakeInstructionDescriptor(38, SpvOpAccessChain, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -198,7 +198,8 @@ TEST(TransformationLoadTest, BasicTest) {
         101, 46, MakeInstructionDescriptor(16, SpvOpReturnValue, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -207,7 +208,8 @@ TEST(TransformationLoadTest, BasicTest) {
         102, 16, MakeInstructionDescriptor(16, SpvOpReturnValue, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -216,7 +218,8 @@ TEST(TransformationLoadTest, BasicTest) {
         103, 40, MakeInstructionDescriptor(43, SpvOpAccessChain, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 

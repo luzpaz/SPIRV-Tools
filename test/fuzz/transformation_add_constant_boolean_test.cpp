@@ -43,11 +43,9 @@ TEST(TransformationAddConstantBooleanTest, NeitherPresentInitiallyAddBoth) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // True and false can both be added as neither is present.
   ASSERT_TRUE(TransformationAddConstantBoolean(7, true, false)
                   .IsApplicable(context.get(), transformation_context));
@@ -68,7 +66,7 @@ TEST(TransformationAddConstantBooleanTest, NeitherPresentInitiallyAddBoth) {
   auto add_false = TransformationAddConstantBoolean(8, false, false);
 
   ASSERT_TRUE(add_true.IsApplicable(context.get(), transformation_context));
-  add_true.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(add_true, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // Having added true, we cannot add it again with the same id.
@@ -77,11 +75,11 @@ TEST(TransformationAddConstantBooleanTest, NeitherPresentInitiallyAddBoth) {
   auto add_true_again = TransformationAddConstantBoolean(100, true, false);
   ASSERT_TRUE(
       add_true_again.IsApplicable(context.get(), transformation_context));
-  add_true_again.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(add_true_again, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   ASSERT_TRUE(add_false.IsApplicable(context.get(), transformation_context));
-  add_false.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(add_false, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // Having added false, we cannot add it again with the same id.
@@ -90,27 +88,30 @@ TEST(TransformationAddConstantBooleanTest, NeitherPresentInitiallyAddBoth) {
   auto add_false_again = TransformationAddConstantBoolean(101, false, false);
   ASSERT_TRUE(
       add_false_again.IsApplicable(context.get(), transformation_context));
-  add_false_again.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(add_false_again, context.get(),
+                        &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // We can create an irrelevant OpConstantTrue.
   TransformationAddConstantBoolean irrelevant_true(102, true, true);
   ASSERT_TRUE(
       irrelevant_true.IsApplicable(context.get(), transformation_context));
-  irrelevant_true.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(irrelevant_true, context.get(),
+                        &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // We can create an irrelevant OpConstantFalse.
   TransformationAddConstantBoolean irrelevant_false(103, false, true);
   ASSERT_TRUE(
       irrelevant_false.IsApplicable(context.get(), transformation_context));
-  irrelevant_false.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(irrelevant_false, context.get(),
+                        &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  ASSERT_FALSE(fact_manager.IdIsIrrelevant(100, context.get()));
-  ASSERT_FALSE(fact_manager.IdIsIrrelevant(101, context.get()));
-  ASSERT_TRUE(fact_manager.IdIsIrrelevant(102, context.get()));
-  ASSERT_TRUE(fact_manager.IdIsIrrelevant(103, context.get()));
+  ASSERT_FALSE(transformation_context.GetFactManager()->IdIsIrrelevant(100));
+  ASSERT_FALSE(transformation_context.GetFactManager()->IdIsIrrelevant(101));
+  ASSERT_TRUE(transformation_context.GetFactManager()->IdIsIrrelevant(102));
+  ASSERT_TRUE(transformation_context.GetFactManager()->IdIsIrrelevant(103));
 
   std::string after_transformation = R"(
                OpCapability Shader
@@ -160,11 +161,9 @@ TEST(TransformationAddConstantBooleanTest, NoOpTypeBoolPresent) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Neither true nor false can be added as OpTypeBool is not present.
   ASSERT_FALSE(TransformationAddConstantBoolean(6, true, false)
                    .IsApplicable(context.get(), transformation_context));

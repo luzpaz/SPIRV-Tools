@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_replace_copy_object_with_store_load.h"
+
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -77,10 +78,9 @@ TEST(TransformationReplaceCopyObjectWithStoreLoad, BasicScenarios) {
   const auto context =
       BuildModule(env, consumer, reference_shader, kFuzzAssembleOption);
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // Invalid: fresh_variable_id=10 is not fresh.
@@ -125,14 +125,16 @@ TEST(TransformationReplaceCopyObjectWithStoreLoad, BasicScenarios) {
       27, 30, SpvStorageClassFunction, 9);
   ASSERT_TRUE(transformation_valid_1.IsApplicable(context.get(),
                                                   transformation_context));
-  transformation_valid_1.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation_valid_1, context.get(),
+                        &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   auto transformation_valid_2 = TransformationReplaceCopyObjectWithStoreLoad(
       28, 32, SpvStorageClassPrivate, 15);
   ASSERT_TRUE(transformation_valid_2.IsApplicable(context.get(),
                                                   transformation_context));
-  transformation_valid_2.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation_valid_2, context.get(),
+                        &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(

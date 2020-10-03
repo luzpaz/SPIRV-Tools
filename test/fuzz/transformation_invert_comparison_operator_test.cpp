@@ -59,11 +59,9 @@ TEST(TransformationInvertComparisonOperatorTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Operator id is not valid.
   ASSERT_FALSE(TransformationInvertComparisonOperator(23, 23).IsApplicable(
       context.get(), transformation_context));
@@ -82,7 +80,8 @@ TEST(TransformationInvertComparisonOperatorTest, BasicTest) {
                                                           fresh_id);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   std::string expected = R"(

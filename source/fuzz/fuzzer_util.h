@@ -164,6 +164,11 @@ bool IsNonFunctionTypeId(opt::IRContext* ir_context, uint32_t id);
 // Returns true if and only if |block_id| is a merge block or continue target
 bool IsMergeOrContinue(opt::IRContext* ir_context, uint32_t block_id);
 
+// Returns the id of the header of the loop corresponding to the given loop
+// merge block. Returns 0 if |merge_block_id| is not a loop merge block.
+uint32_t GetLoopFromMergeBlock(opt::IRContext* ir_context,
+                               uint32_t merge_block_id);
+
 // Returns the result id of an instruction of the form:
 //  %id = OpTypeFunction |type_ids|
 // or 0 if no such instruction exists.
@@ -474,6 +479,17 @@ void AddVectorType(opt::IRContext* ir_context, uint32_t result_id,
 void AddStructType(opt::IRContext* ir_context, uint32_t result_id,
                    const std::vector<uint32_t>& component_type_ids);
 
+// Returns a vector of words representing the integer |value|, only considering
+// the last |width| bits. The last |width| bits are sign-extended if the value
+// is signed, zero-extended if it is unsigned.
+// |width| must be <= 64.
+// If |width| <= 32, returns a vector containing one value. If |width| > 64,
+// returns a vector containing two values, with the first one representing the
+// lower-order word of the value and the second one representing the
+// higher-order word.
+std::vector<uint32_t> IntToWords(uint64_t value, uint32_t width,
+                                 bool is_signed);
+
 // Returns a bit pattern that represents a floating-point |value|.
 inline uint32_t FloatToWord(float value) {
   uint32_t result;
@@ -525,6 +541,12 @@ bool IdUseCanBeReplaced(opt::IRContext* ir_context,
 bool MembersHaveBuiltInDecoration(opt::IRContext* ir_context,
                                   uint32_t struct_type_id);
 
+// Returns true if and only if |id| is decorated with either Block or
+// BufferBlock.  Even though these decorations are only allowed on struct types,
+// for convenience |id| can be any result id so that it is possible to call this
+// method on something that *might* be a struct type.
+bool HasBlockOrBufferBlockDecoration(opt::IRContext* ir_context, uint32_t id);
+
 // Returns true iff splitting block |block_to_split| just before the instruction
 // |split_before| would separate an OpSampledImage instruction from its usage.
 bool SplittingBeforeInstructionSeparatesOpSampledImageDefinitionFromUse(
@@ -535,6 +557,12 @@ bool SplittingBeforeInstructionSeparatesOpSampledImageDefinitionFromUse(
 //  missing instructions to the list. In particular, GLSL extended instructions
 //  (called using OpExtInst) have not been considered.
 bool InstructionHasNoSideEffects(const opt::Instruction& instruction);
+
+// Returns a set of the ids of all the return blocks that are reachable from
+// the entry block of |function_id|.
+// Assumes that the function exists in the module.
+std::set<uint32_t> GetReachableReturnBlocks(opt::IRContext* ir_context,
+                                            uint32_t function_id);
 
 }  // namespace fuzzerutil
 }  // namespace fuzz

@@ -173,11 +173,15 @@ void TransformationAddFunction::Apply(
     success = TryToMakeFunctionLivesafe(ir_context, *transformation_context);
     assert(success && "It should be possible to make the function livesafe.");
     (void)(success);  // Keep release builds happy.
+  }
+  ir_context->InvalidateAnalysesExceptFor(opt::IRContext::kAnalysisNone);
 
+  assert(message_.instruction(0).opcode() == SpvOpFunction &&
+         "The first instruction of an 'add function' transformation must be "
+         "OpFunction.");
+
+  if (message_.is_livesafe()) {
     // Inform the fact manager that the function is livesafe.
-    assert(message_.instruction(0).opcode() == SpvOpFunction &&
-           "The first instruction of an 'add function' transformation must be "
-           "OpFunction.");
     transformation_context->GetFactManager()->AddFactFunctionIsLivesafe(
         message_.instruction(0).result_id());
   } else {
@@ -189,7 +193,6 @@ void TransformationAddFunction::Apply(
       }
     }
   }
-  ir_context->InvalidateAnalysesExceptFor(opt::IRContext::kAnalysisNone);
 
   // Record the fact that all pointer parameters and variables declared in the
   // function should be regarded as having irrelevant values.  This allows other
@@ -203,14 +206,12 @@ void TransformationAddFunction::Apply(
                 ->GetDef(instruction.result_type_id())
                 ->opcode() == SpvOpTypePointer) {
           transformation_context->GetFactManager()
-              ->AddFactValueOfPointeeIsIrrelevant(instruction.result_id(),
-                                                  ir_context);
+              ->AddFactValueOfPointeeIsIrrelevant(instruction.result_id());
         }
         break;
       case SpvOpVariable:
         transformation_context->GetFactManager()
-            ->AddFactValueOfPointeeIsIrrelevant(instruction.result_id(),
-                                                ir_context);
+            ->AddFactValueOfPointeeIsIrrelevant(instruction.result_id());
         break;
       default:
         break;
@@ -927,6 +928,30 @@ opt::Instruction* TransformationAddFunction::FollowCompositeIndex(
   }
   assert(sub_object_type_id && "No sub-object found.");
   return ir_context->get_def_use_mgr()->GetDef(sub_object_type_id);
+}
+
+std::unordered_set<uint32_t> TransformationAddFunction::GetFreshIds() const {
+  std::unordered_set<uint32_t> result;
+  for (auto& instruction : message_.instruction()) {
+    result.insert(instruction.result_id());
+  }
+  if (message_.is_livesafe()) {
+    result.insert(message_.loop_limiter_variable_id());
+    for (auto& loop_limiter_info : message_.loop_limiter_info()) {
+      result.insert(loop_limiter_info.load_id());
+      result.insert(loop_limiter_info.increment_id());
+      result.insert(loop_limiter_info.compare_id());
+      result.insert(loop_limiter_info.logical_op_id());
+    }
+    for (auto& access_chain_clamping_info :
+         message_.access_chain_clamping_info()) {
+      for (auto& pair : access_chain_clamping_info.compare_and_select_ids()) {
+        result.insert(pair.first());
+        result.insert(pair.second());
+      }
+    }
+  }
+  return result;
 }
 
 }  // namespace fuzz

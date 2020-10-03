@@ -33,6 +33,7 @@
 #include "source/fuzz/transformation_add_image_sample_unused_components.h"
 #include "source/fuzz/transformation_add_local_variable.h"
 #include "source/fuzz/transformation_add_loop_preheader.h"
+#include "source/fuzz/transformation_add_loop_to_create_int_constant_synonym.h"
 #include "source/fuzz/transformation_add_no_contraction_decoration.h"
 #include "source/fuzz/transformation_add_opphi_synonym.h"
 #include "source/fuzz/transformation_add_parameter.h"
@@ -94,6 +95,7 @@
 #include "source/fuzz/transformation_swap_conditional_branch_operands.h"
 #include "source/fuzz/transformation_toggle_access_chain_instruction.h"
 #include "source/fuzz/transformation_vector_shuffle.h"
+#include "source/fuzz/transformation_wrap_region_in_selection.h"
 #include "source/util/make_unique.h"
 
 namespace spvtools {
@@ -149,6 +151,10 @@ std::unique_ptr<Transformation> Transformation::FromMessage(
     case protobufs::Transformation::TransformationCase::kAddLoopPreheader:
       return MakeUnique<TransformationAddLoopPreheader>(
           message.add_loop_preheader());
+    case protobufs::Transformation::TransformationCase::
+        kAddLoopToCreateIntConstantSynonym:
+      return MakeUnique<TransformationAddLoopToCreateIntConstantSynonym>(
+          message.add_loop_to_create_int_constant_synonym());
     case protobufs::Transformation::TransformationCase::
         kAddNoContractionDecoration:
       return MakeUnique<TransformationAddNoContractionDecoration>(
@@ -337,6 +343,9 @@ std::unique_ptr<Transformation> Transformation::FromMessage(
           message.toggle_access_chain_instruction());
     case protobufs::Transformation::TransformationCase::kVectorShuffle:
       return MakeUnique<TransformationVectorShuffle>(message.vector_shuffle());
+    case protobufs::Transformation::TransformationCase::kWrapRegionInSelection:
+      return MakeUnique<TransformationWrapRegionInSelection>(
+          message.wrap_region_in_selection());
     case protobufs::Transformation::TRANSFORMATION_NOT_SET:
       assert(false && "An unset transformation was encountered.");
       return nullptr;

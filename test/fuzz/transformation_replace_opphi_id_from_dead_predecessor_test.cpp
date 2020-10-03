@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_replace_opphi_id_from_dead_predecessor.h"
+
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -74,10 +75,9 @@ TEST(TransformationReplaceOpPhiIdFromDeadPredecessorTest, Inapplicable) {
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // Record the fact that blocks 20, 17, 28 are dead.
@@ -116,10 +116,9 @@ TEST(TransformationReplaceOpPhiIdFromDeadPredecessorTest, Apply) {
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // Record the fact that blocks 20, 17, 28 are dead.
@@ -131,19 +130,22 @@ TEST(TransformationReplaceOpPhiIdFromDeadPredecessorTest, Apply) {
       TransformationReplaceOpPhiIdFromDeadPredecessor(25, 20, 18);
   ASSERT_TRUE(
       transformation1.IsApplicable(context.get(), transformation_context));
-  transformation1.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation1, context.get(),
+                        &transformation_context);
 
   auto transformation2 =
       TransformationReplaceOpPhiIdFromDeadPredecessor(30, 28, 29);
   ASSERT_TRUE(
       transformation2.IsApplicable(context.get(), transformation_context));
-  transformation2.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation2, context.get(),
+                        &transformation_context);
 
   auto transformation3 =
       TransformationReplaceOpPhiIdFromDeadPredecessor(29, 17, 10);
   ASSERT_TRUE(
       transformation3.IsApplicable(context.get(), transformation_context));
-  transformation3.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation3, context.get(),
+                        &transformation_context);
 
   ASSERT_TRUE(IsValid(env, context.get()));
 

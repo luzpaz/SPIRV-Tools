@@ -110,6 +110,17 @@ bool TransformationDuplicateRegionWithSelection::IsApplicable(
     return false;
   }
 
+  // To make the process of resolving OpPhi instructions easier, we require that
+  // the entry block has only one predecessor.
+  auto entry_block_preds = ir_context->cfg()->preds(entry_block->id());
+  std::sort(entry_block_preds.begin(), entry_block_preds.end());
+  entry_block_preds.erase(
+      std::unique(entry_block_preds.begin(), entry_block_preds.end()),
+      entry_block_preds.end());
+  if (entry_block_preds.size() > 1) {
+    return false;
+  }
+
   // TODO(https://github.com/KhronosGroup/SPIRV-Tools/issues/3785):
   //     The following code has been copied from TransformationOutlineFunction.
   //     Consider refactoring to avoid duplication.
@@ -586,6 +597,22 @@ protobufs::Transformation
 TransformationDuplicateRegionWithSelection::ToMessage() const {
   protobufs::Transformation result;
   *result.mutable_duplicate_region_with_selection() = message_;
+  return result;
+}
+
+std::unordered_set<uint32_t>
+TransformationDuplicateRegionWithSelection::GetFreshIds() const {
+  std::unordered_set<uint32_t> result = {message_.new_entry_fresh_id(),
+                                         message_.merge_label_fresh_id()};
+  for (auto& pair : message_.original_label_to_duplicate_label()) {
+    result.insert(pair.second());
+  }
+  for (auto& pair : message_.original_id_to_duplicate_id()) {
+    result.insert(pair.second());
+  }
+  for (auto& pair : message_.original_id_to_phi_id()) {
+    result.insert(pair.second());
+  }
   return result;
 }
 

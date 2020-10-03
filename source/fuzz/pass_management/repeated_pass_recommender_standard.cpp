@@ -120,7 +120,12 @@ RepeatedPassRecommenderStandard::GetFuturePassRecommendations(
     //   outlining functions.
     return RandomOrderAndNonNull(
         {pass_instances_->GetDuplicateRegionsWithSelections(),
-         pass_instances_->GetOutlineFunctions()});
+         pass_instances_->GetOutlineFunctions(),
+         pass_instances_->GetWrapRegionsInSelections()});
+  }
+  if (&pass == pass_instances_->GetAddLoopsToCreateIntConstantSynonyms()) {
+    // - New synonyms can be applied
+    return RandomOrderAndNonNull({pass_instances_->GetApplyIdSynonyms()});
   }
   if (&pass == pass_instances_->GetAddOpPhiSynonyms()) {
     // - New synonyms can be applied
@@ -183,8 +188,10 @@ RepeatedPassRecommenderStandard::GetFuturePassRecommendations(
   if (&pass == pass_instances_->GetDonateModules()) {
     // - New functions in the module can be called
     // - Donated dead functions produce irrelevant ids, which can be replaced
+    // - Donated functions are good candidates for having their returns merged
     return RandomOrderAndNonNull({pass_instances_->GetAddFunctionCalls(),
-                                  pass_instances_->GetReplaceIrrelevantIds()});
+                                  pass_instances_->GetReplaceIrrelevantIds(),
+                                  pass_instances_->GetMergeFunctionReturns()});
   }
   if (&pass == pass_instances_->GetDuplicateRegionsWithSelections()) {
     // - Parts of duplicated regions can be outlined
@@ -215,6 +222,11 @@ RepeatedPassRecommenderStandard::GetFuturePassRecommendations(
     // - Having merged some blocks it may be interesting to split them in a
     //   different way
     return RandomOrderAndNonNull({pass_instances_->GetSplitBlocks()});
+  }
+  if (&pass == pass_instances_->GetMergeFunctionReturns()) {
+    // - Functions without early returns are more likely to be able to be
+    //   inlined.
+    return RandomOrderAndNonNull({pass_instances_->GetInlineFunctions()});
   }
   if (&pass == pass_instances_->GetMutatePointers()) {
     // - This creates irrelevant ids, which can be replaced
@@ -303,6 +315,16 @@ RepeatedPassRecommenderStandard::GetFuturePassRecommendations(
   if (&pass == pass_instances_->GetSwapBranchConditionalOperands()) {
     // No obvious follow-on passes
     return {};
+  }
+  if (&pass == pass_instances_->GetWrapRegionsInSelections()) {
+    // - This pass uses an irrelevant boolean constant - we can replace it with
+    //   something more interesting.
+    // - We can obfuscate that very constant as well.
+    // - We can flatten created selection construct.
+    return RandomOrderAndNonNull(
+        {pass_instances_->GetObfuscateConstants(),
+         pass_instances_->GetReplaceIrrelevantIds(),
+         pass_instances_->GetFlattenConditionalBranches()});
   }
   assert(false && "Unreachable: every fuzzer pass should be dealt with.");
   return {};

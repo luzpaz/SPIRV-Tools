@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_add_type_matrix.h"
+
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -46,11 +47,9 @@ TEST(TransformationAddTypeMatrixTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Id already in use
   ASSERT_FALSE(TransformationAddTypeMatrix(4, 9, 2).IsApplicable(
       context.get(), transformation_context));
@@ -93,7 +92,8 @@ TEST(TransformationAddTypeMatrixTest, BasicTest) {
   for (auto& transformation : transformations) {
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   ASSERT_TRUE(IsValid(env, context.get()));
 

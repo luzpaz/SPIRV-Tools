@@ -117,13 +117,11 @@ TEST(TransformationAccessChainTest, BasicTest) {
 
   // Indices 0-5 are in ids 80-85
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      54, context.get());
+      54);
 
   // Bad: id is not fresh
   ASSERT_FALSE(TransformationAccessChain(
@@ -217,7 +215,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         100, 43, {80}, MakeInstructionDescriptor(24, SpvOpLoad, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(100));
@@ -228,7 +227,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         101, 28, {81}, MakeInstructionDescriptor(42, SpvOpReturn, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(101));
@@ -239,7 +239,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         102, 44, {}, MakeInstructionDescriptor(44, SpvOpStore, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(103));
@@ -250,7 +251,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         103, 13, {80}, MakeInstructionDescriptor(21, SpvOpAccessChain, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(104));
@@ -261,7 +263,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         104, 34, {}, MakeInstructionDescriptor(44, SpvOpStore, 1));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(105));
@@ -272,7 +275,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         105, 38, {}, MakeInstructionDescriptor(40, SpvOpFunctionCall, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(106));
@@ -283,7 +287,8 @@ TEST(TransformationAccessChainTest, BasicTest) {
         106, 14, {}, MakeInstructionDescriptor(24, SpvOpLoad, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
     ASSERT_FALSE(
         transformation_context.GetFactManager()->PointeeValueIsIrrelevant(107));
@@ -403,17 +408,16 @@ TEST(TransformationAccessChainTest, IsomorphicStructs) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   {
     TransformationAccessChain transformation(
         100, 11, {}, MakeInstructionDescriptor(5, SpvOpReturn, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -421,7 +425,8 @@ TEST(TransformationAccessChainTest, IsomorphicStructs) {
         101, 12, {}, MakeInstructionDescriptor(5, SpvOpReturn, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -511,11 +516,9 @@ TEST(TransformationAccessChainTest, ClampingVariables) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Bad: no ids given for clamping
   ASSERT_FALSE(TransformationAccessChain(
                    100, 29, {17}, MakeInstructionDescriptor(36, SpvOpLoad, 0))
@@ -565,7 +568,8 @@ TEST(TransformationAccessChainTest, ClampingVariables) {
         {{200, 201}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -575,7 +579,8 @@ TEST(TransformationAccessChainTest, ClampingVariables) {
         {{202, 203}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -585,7 +590,8 @@ TEST(TransformationAccessChainTest, ClampingVariables) {
         {{204, 205}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -595,7 +601,8 @@ TEST(TransformationAccessChainTest, ClampingVariables) {
         {{206, 207}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -605,7 +612,8 @@ TEST(TransformationAccessChainTest, ClampingVariables) {
         {{208, 209}, {210, 211}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 

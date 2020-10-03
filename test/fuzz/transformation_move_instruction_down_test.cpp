@@ -66,11 +66,9 @@ TEST(TransformationMoveInstructionDownTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Instruction descriptor is invalid.
   ASSERT_FALSE(TransformationMoveInstructionDown(
                    MakeInstructionDescriptor(30, SpvOpNop, 0))
@@ -113,7 +111,8 @@ TEST(TransformationMoveInstructionDownTest, BasicTest) {
         MakeInstructionDescriptor(11, SpvOpISub, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -121,7 +120,8 @@ TEST(TransformationMoveInstructionDownTest, BasicTest) {
         MakeInstructionDescriptor(22, SpvOpIAdd, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -209,11 +209,9 @@ TEST(TransformationMoveInstructionDownTest, HandlesUnsupportedInstructions) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Swap memory instruction with an unsupported one.
   ASSERT_FALSE(TransformationMoveInstructionDown(
                    MakeInstructionDescriptor(22, SpvOpLoad, 0))
@@ -229,7 +227,7 @@ TEST(TransformationMoveInstructionDownTest, HandlesUnsupportedInstructions) {
       MakeInstructionDescriptor(8, SpvOpCopyObject, 0));
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -314,11 +312,9 @@ TEST(TransformationMoveInstructionDownTest, HandlesBarrierInstructions) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Swap two barrier instructions.
   ASSERT_FALSE(TransformationMoveInstructionDown(
                    MakeInstructionDescriptor(21, SpvOpMemoryBarrier, 0))
@@ -338,7 +334,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesBarrierInstructions) {
         MakeInstructionDescriptor(23, SpvOpCopyObject, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -346,7 +343,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesBarrierInstructions) {
         MakeInstructionDescriptor(22, SpvOpMemoryBarrier, 1));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -395,18 +393,17 @@ TEST(TransformationMoveInstructionDownTest, HandlesSimpleInstructions) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Swap simple and barrier instructions.
   {
     TransformationMoveInstructionDown transformation(
         MakeInstructionDescriptor(40, SpvOpCopyObject, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -414,7 +411,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesSimpleInstructions) {
         MakeInstructionDescriptor(21, SpvOpMemoryBarrier, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -424,7 +422,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesSimpleInstructions) {
         MakeInstructionDescriptor(41, SpvOpCopyObject, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -432,7 +431,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesSimpleInstructions) {
         MakeInstructionDescriptor(22, SpvOpLoad, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -442,7 +442,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesSimpleInstructions) {
         MakeInstructionDescriptor(23, SpvOpCopyObject, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -602,12 +603,11 @@ TEST(TransformationMoveInstructionDownTest, HandlesMemoryInstructions) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
-  fact_manager.AddFactValueOfPointeeIsIrrelevant(22, context.get());
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+  transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
+      22);
 
   // Invalid swaps.
 
@@ -694,7 +694,8 @@ TEST(TransformationMoveInstructionDownTest, HandlesMemoryInstructions) {
     TransformationMoveInstructionDown transformation(descriptor);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 

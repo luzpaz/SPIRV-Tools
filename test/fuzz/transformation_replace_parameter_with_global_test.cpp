@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_replace_parameter_with_global.h"
+
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -115,11 +116,9 @@ TEST(TransformationReplaceParameterWithGlobalTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Parameter id is invalid.
   ASSERT_FALSE(TransformationReplaceParameterWithGlobal(50, 50, 51)
                    .IsApplicable(context.get(), transformation_context));
@@ -156,43 +155,50 @@ TEST(TransformationReplaceParameterWithGlobalTest, BasicTest) {
     TransformationReplaceParameterWithGlobal transformation(50, 16, 51);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParameterWithGlobal transformation(52, 17, 53);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParameterWithGlobal transformation(54, 18, 55);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParameterWithGlobal transformation(56, 19, 57);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParameterWithGlobal transformation(58, 75, 59);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParameterWithGlobal transformation(60, 81, 61);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParameterWithGlobal transformation(62, 91, 63);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   ASSERT_TRUE(IsValid(env, context.get()));
@@ -325,26 +331,28 @@ TEST(TransformationReplaceParameterWithGlobalTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
-  fact_manager.AddFactIdIsIrrelevant(10, context.get());
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+  transformation_context.GetFactManager()->AddFactIdIsIrrelevant(10);
 
   {
     TransformationReplaceParameterWithGlobal transformation(20, 10, 21);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
-    ASSERT_TRUE(fact_manager.PointeeValueIsIrrelevant(21));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
+    ASSERT_TRUE(
+        transformation_context.GetFactManager()->PointeeValueIsIrrelevant(21));
   }
   {
     TransformationReplaceParameterWithGlobal transformation(22, 11, 23);
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
-    ASSERT_FALSE(fact_manager.PointeeValueIsIrrelevant(23));
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
+    ASSERT_FALSE(
+        transformation_context.GetFactManager()->PointeeValueIsIrrelevant(23));
   }
 }
 

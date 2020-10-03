@@ -15,11 +15,12 @@
 #ifndef TEST_FUZZ_FUZZ_TEST_UTIL_H_
 #define TEST_FUZZ_FUZZ_TEST_UTIL_H_
 
-#include "gtest/gtest.h"
-
 #include <vector>
 
+#include "gtest/gtest.h"
 #include "source/fuzz/protobufs/spirvfuzz_protobufs.h"
+#include "source/fuzz/transformation.h"
+#include "source/fuzz/transformation_context.h"
 #include "source/opt/build_module.h"
 #include "source/opt/ir_context.h"
 #include "spirv-tools/libspirv.h"
@@ -44,6 +45,11 @@ bool IsEqual(spv_target_env env, const std::string& expected_text,
 // Turns the given IRs into binaries, then returns true if and only if the
 // resulting binaries are bit-wise equal.
 bool IsEqual(spv_target_env env, const opt::IRContext* ir_1,
+             const opt::IRContext* ir_2);
+
+// Turns |ir_2| into a binary, then returns true if and only if the resulting
+// binary is bit-wise equal to |binary_1|.
+bool IsEqual(spv_target_env env, const std::vector<uint32_t>& binary_1,
              const opt::IRContext* ir_2);
 
 // Assembles the given IR context and returns true if and only if
@@ -106,6 +112,20 @@ void DumpShader(const std::vector<uint32_t>& binary, const char* filename);
 void DumpTransformationsJson(
     const protobufs::TransformationSequence& transformations,
     const char* filename);
+
+// Applies |transformation| to |ir_context| and |transformation_context|, and
+// asserts that any ids in |ir_context| that are only present post-
+// transformation are either contained in |transformation.GetFreshIds()|, or
+// in |issued_overflow_ids|.
+void ApplyAndCheckFreshIds(
+    const Transformation& transformation, opt::IRContext* ir_context,
+    TransformationContext* transformation_context,
+    const std::unordered_set<uint32_t>& issued_overflow_ids);
+
+// Invokes ApplyAndCheckFreshIds above, with an empty set of overflow ids.
+void ApplyAndCheckFreshIds(const Transformation& transformation,
+                           opt::IRContext* ir_context,
+                           TransformationContext* transformation_context);
 
 }  // namespace fuzz
 }  // namespace spvtools

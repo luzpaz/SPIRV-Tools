@@ -30,6 +30,7 @@
 #include "source/fuzz/fuzzer_pass_add_loads.h"
 #include "source/fuzz/fuzzer_pass_add_local_variables.h"
 #include "source/fuzz/fuzzer_pass_add_loop_preheaders.h"
+#include "source/fuzz/fuzzer_pass_add_loops_to_create_int_constant_synonyms.h"
 #include "source/fuzz/fuzzer_pass_add_opphi_synonyms.h"
 #include "source/fuzz/fuzzer_pass_add_parameters.h"
 #include "source/fuzz/fuzzer_pass_add_relaxed_decorations.h"
@@ -46,6 +47,7 @@
 #include "source/fuzz/fuzzer_pass_invert_comparison_operators.h"
 #include "source/fuzz/fuzzer_pass_make_vector_operations_dynamic.h"
 #include "source/fuzz/fuzzer_pass_merge_blocks.h"
+#include "source/fuzz/fuzzer_pass_merge_function_returns.h"
 #include "source/fuzz/fuzzer_pass_mutate_pointers.h"
 #include "source/fuzz/fuzzer_pass_obfuscate_constants.h"
 #include "source/fuzz/fuzzer_pass_outline_functions.h"
@@ -66,6 +68,7 @@
 #include "source/fuzz/fuzzer_pass_replace_params_with_struct.h"
 #include "source/fuzz/fuzzer_pass_split_blocks.h"
 #include "source/fuzz/fuzzer_pass_swap_conditional_branch_operands.h"
+#include "source/fuzz/fuzzer_pass_wrap_regions_in_selections.h"
 
 namespace spvtools {
 namespace fuzz {
@@ -118,6 +121,7 @@ class RepeatedPassInstances {
   REPEATED_PASS_INSTANCE(AddLoads);
   REPEATED_PASS_INSTANCE(AddLocalVariables);
   REPEATED_PASS_INSTANCE(AddLoopPreheaders);
+  REPEATED_PASS_INSTANCE(AddLoopsToCreateIntConstantSynonyms);
   REPEATED_PASS_INSTANCE(AddOpPhiSynonyms);
   REPEATED_PASS_INSTANCE(AddParameters);
   REPEATED_PASS_INSTANCE(AddRelaxedDecorations);
@@ -134,6 +138,7 @@ class RepeatedPassInstances {
   REPEATED_PASS_INSTANCE(InvertComparisonOperators);
   REPEATED_PASS_INSTANCE(MakeVectorOperationsDynamic);
   REPEATED_PASS_INSTANCE(MergeBlocks);
+  REPEATED_PASS_INSTANCE(MergeFunctionReturns);
   REPEATED_PASS_INSTANCE(MutatePointers);
   REPEATED_PASS_INSTANCE(ObfuscateConstants);
   REPEATED_PASS_INSTANCE(OutlineFunctions);
@@ -154,6 +159,7 @@ class RepeatedPassInstances {
   REPEATED_PASS_INSTANCE(ReplaceParamsWithStruct);
   REPEATED_PASS_INSTANCE(SplitBlocks);
   REPEATED_PASS_INSTANCE(SwapBranchConditionalOperands);
+  REPEATED_PASS_INSTANCE(WrapRegionsInSelections);
 #undef REPEATED_PASS_INSTANCE
 
  public:

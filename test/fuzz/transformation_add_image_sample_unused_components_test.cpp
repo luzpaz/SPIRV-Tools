@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_add_image_sample_unused_components.h"
+
 #include "source/fuzz/instruction_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -65,11 +66,9 @@ TEST(TransformationAddImageSampleUnusedComponentsTest, IsApplicable) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Tests applicable image instruction.
   auto instruction_descriptor =
       MakeInstructionDescriptor(25, SpvOpImageSampleImplicitLod, 0);
@@ -193,22 +192,20 @@ TEST(TransformationAddImageSampleUnusedComponentsTest, Apply) {
       BuildModule(env, consumer, reference_shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   auto instruction_descriptor =
       MakeInstructionDescriptor(25, SpvOpImageSampleImplicitLod, 0);
   auto transformation =
       TransformationAddImageSampleUnusedComponents(23, instruction_descriptor);
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
 
   instruction_descriptor =
       MakeInstructionDescriptor(26, SpvOpImageSampleExplicitLod, 0);
   transformation =
       TransformationAddImageSampleUnusedComponents(24, instruction_descriptor);
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
 
   std::string variant_shader = R"(
                OpCapability Shader

@@ -161,10 +161,10 @@ void TransformationAddParameter::Apply(
   // of a pointer type we mark it with PointeeValueIsIrrelevant.
   if (new_parameter_kind != opt::analysis::Type::kPointer) {
     transformation_context->GetFactManager()->AddFactIdIsIrrelevant(
-        message_.parameter_fresh_id(), ir_context);
+        message_.parameter_fresh_id());
   } else {
     transformation_context->GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-        message_.parameter_fresh_id(), ir_context);
+        message_.parameter_fresh_id());
   }
 }
 
@@ -209,6 +209,10 @@ bool TransformationAddParameter::IsParameterTypeSupported(
     default:
       return false;
   }
+}
+
+std::unordered_set<uint32_t> TransformationAddParameter::GetFreshIds() const {
+  return {message_.parameter_fresh_id(), message_.function_type_fresh_id()};
 }
 
 }  // namespace fuzz

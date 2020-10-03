@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_store.h"
+
 #include "source/fuzz/instruction_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -93,25 +94,23 @@ TEST(TransformationStoreTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      27, context.get());
+      27);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      11, context.get());
+      11);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      46, context.get());
+      46);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      16, context.get());
+      16);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      52, context.get());
+      52);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      81, context.get());
+      81);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      82, context.get());
+      82);
 
   transformation_context.GetFactManager()->AddFactBlockIsDead(36);
 
@@ -233,7 +232,8 @@ TEST(TransformationStoreTest, BasicTest) {
         27, 80, MakeInstructionDescriptor(38, SpvOpAccessChain, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -243,7 +243,8 @@ TEST(TransformationStoreTest, BasicTest) {
         11, 95, MakeInstructionDescriptor(95, SpvOpReturnValue, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -253,7 +254,8 @@ TEST(TransformationStoreTest, BasicTest) {
         46, 80, MakeInstructionDescriptor(95, SpvOpReturnValue, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -263,7 +265,8 @@ TEST(TransformationStoreTest, BasicTest) {
         16, 21, MakeInstructionDescriptor(95, SpvOpReturnValue, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -273,7 +276,8 @@ TEST(TransformationStoreTest, BasicTest) {
         53, 21, MakeInstructionDescriptor(38, SpvOpAccessChain, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -397,12 +401,10 @@ TEST(TransformationStoreTest, DoNotAllowStoresToReadOnlyMemory) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
-  fact_manager.AddFactBlockIsDead(5);
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+  transformation_context.GetFactManager()->AddFactBlockIsDead(5);
 
   ASSERT_FALSE(
       TransformationStore(15, 13, MakeInstructionDescriptor(27, SpvOpReturn, 0))

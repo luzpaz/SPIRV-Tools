@@ -184,9 +184,9 @@ void TransformationReplaceParameterWithGlobal::Apply(
   // Mark the pointee of the global variable storing the parameter's value as
   // irrelevant if replaced parameter is irrelevant.
   if (transformation_context->GetFactManager()->IdIsIrrelevant(
-          message_.parameter_id(), ir_context)) {
+          message_.parameter_id())) {
     transformation_context->GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-        message_.global_variable_fresh_id(), ir_context);
+        message_.global_variable_fresh_id());
   }
 }
 
@@ -202,6 +202,12 @@ bool TransformationReplaceParameterWithGlobal::IsParameterTypeSupported(
   // TODO(https://github.com/KhronosGroup/SPIRV-Tools/issues/3403):
   //  Think about other type instructions we can add here.
   return fuzzerutil::CanCreateConstant(type);
+}
+
+std::unordered_set<uint32_t>
+TransformationReplaceParameterWithGlobal::GetFreshIds() const {
+  return {message_.function_type_fresh_id(),
+          message_.global_variable_fresh_id()};
 }
 
 }  // namespace fuzz

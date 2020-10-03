@@ -33,7 +33,7 @@ uint32_t MaybeGetOpConstant(opt::IRContext* ir_context,
     if (inst.opcode() == SpvOpConstant && inst.type_id() == type_id &&
         inst.GetInOperand(0).words == words &&
         transformation_context.GetFactManager()->IdIsIrrelevant(
-            inst.result_id(), ir_context) == is_irrelevant) {
+            inst.result_id()) == is_irrelevant) {
       return inst.result_id();
     }
   }
@@ -261,8 +261,8 @@ bool CanMakeSynonymOf(opt::IRContext* ir_context,
     // We can only make a synonym of an instruction that generates an id.
     return false;
   }
-  if (transformation_context.GetFactManager()->IdIsIrrelevant(inst->result_id(),
-                                                              ir_context)) {
+  if (transformation_context.GetFactManager()->IdIsIrrelevant(
+          inst->result_id())) {
     // An irrelevant id can't be a synonym of anything.
     return false;
   }
@@ -430,6 +430,28 @@ bool IsMergeOrContinue(opt::IRContext* ir_context, uint32_t block_id) {
           case SpvOpSelectionMerge:
             result = true;
             return false;
+          default:
+            return true;
+        }
+      });
+  return result;
+}
+
+uint32_t GetLoopFromMergeBlock(opt::IRContext* ir_context,
+                               uint32_t merge_block_id) {
+  uint32_t result = 0;
+  ir_context->get_def_use_mgr()->WhileEachUse(
+      merge_block_id,
+      [ir_context, &result](opt::Instruction* use_instruction,
+                            uint32_t use_index) -> bool {
+        switch (use_instruction->opcode()) {
+          case SpvOpLoopMerge:
+            // The merge block operand is the first operand in OpLoopMerge.
+            if (use_index == 0) {
+              result = ir_context->get_instr_block(use_instruction)->id();
+              return false;
+            }
+            return true;
           default:
             return true;
         }
@@ -1149,7 +1171,7 @@ uint32_t MaybeGetCompositeConstant(
     if (inst.opcode() == SpvOpConstantComposite &&
         inst.type_id() == composite_type_id &&
         transformation_context.GetFactManager()->IdIsIrrelevant(
-            inst.result_id(), ir_context) == is_irrelevant &&
+            inst.result_id()) == is_irrelevant &&
         inst.NumInOperands() == component_ids.size()) {
       bool is_match = true;
 
@@ -1229,7 +1251,7 @@ uint32_t MaybeGetBoolConstant(
       if (inst.opcode() == (value ? SpvOpConstantTrue : SpvOpConstantFalse) &&
           inst.type_id() == type_id &&
           transformation_context.GetFactManager()->IdIsIrrelevant(
-              inst.result_id(), ir_context) == is_irrelevant) {
+              inst.result_id()) == is_irrelevant) {
         return inst.result_id();
       }
     }
@@ -1304,6 +1326,30 @@ void AddStructType(opt::IRContext* ir_context, uint32_t result_id,
       ir_context, SpvOpTypeStruct, 0, result_id, std::move(operands)));
 
   UpdateModuleIdBound(ir_context, result_id);
+}
+
+std::vector<uint32_t> IntToWords(uint64_t value, uint32_t width,
+                                 bool is_signed) {
+  assert(width <= 64 && "The bit width should not be more than 64 bits");
+
+  // Sign-extend or zero-extend the last |width| bits of |value|, depending on
+  // |is_signed|.
+  if (is_signed) {
+    // Sign-extend by shifting left and then shifting right, interpreting the
+    // integer as signed.
+    value = static_cast<int64_t>(value << (64 - width)) >> (64 - width);
+  } else {
+    // Zero-extend by shifting left and then shifting right, interpreting the
+    // integer as unsigned.
+    value = (value << (64 - width)) >> (64 - width);
+  }
+
+  std::vector<uint32_t> result;
+  result.push_back(static_cast<uint32_t>(value));
+  if (width > 32) {
+    result.push_back(static_cast<uint32_t>(value >> 32));
+  }
+  return result;
 }
 
 bool TypesAreEqualUpToSign(opt::IRContext* ir_context, uint32_t type1_id,
@@ -1504,6 +1550,18 @@ bool MembersHaveBuiltInDecoration(opt::IRContext* ir_context,
   return builtin_count != 0;
 }
 
+bool HasBlockOrBufferBlockDecoration(opt::IRContext* ir_context, uint32_t id) {
+  for (auto decoration : {SpvDecorationBlock, SpvDecorationBufferBlock}) {
+    if (!ir_context->get_decoration_mgr()->WhileEachDecoration(
+            id, decoration, [](const opt::Instruction & /*unused*/) -> bool {
+              return false;
+            })) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool SplittingBeforeInstructionSeparatesOpSampledImageDefinitionFromUse(
     opt::BasicBlock* block_to_split, opt::Instruction* split_before) {
   std::set<uint32_t> sampled_image_result_ids;
@@ -1647,6 +1705,23 @@ bool InstructionHasNoSideEffects(const opt::Instruction& instruction) {
     default:
       return false;
   }
+}
+
+std::set<uint32_t> GetReachableReturnBlocks(opt::IRContext* ir_context,
+                                            uint32_t function_id) {
+  auto function = ir_context->GetFunction(function_id);
+  assert(function && "The function |function_id| must exist.");
+
+  std::set<uint32_t> result;
+
+  ir_context->cfg()->ForEachBlockInPostOrder(function->entry().get(),
+                                             [&result](opt::BasicBlock* block) {
+                                               if (block->IsReturn()) {
+                                                 result.emplace(block->id());
+                                               }
+                                             });
+
+  return result;
 }
 
 }  // namespace fuzzerutil

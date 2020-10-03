@@ -35,6 +35,7 @@
 #include "source/fuzz/transformation_add_type_pointer.h"
 #include "source/fuzz/transformation_add_type_struct.h"
 #include "source/fuzz/transformation_add_type_vector.h"
+#include "source/fuzz/transformation_split_block.h"
 
 namespace spvtools {
 namespace fuzz {
@@ -438,17 +439,21 @@ FuzzerPass::GetAvailableBasicTypesAndPointers(
         }
         break;
       case SpvOpTypeStruct: {
-        // A struct type is basic if all of its members are basic.
-        bool all_members_are_basic_types = true;
-        for (uint32_t i = 0; i < inst.NumInOperands(); i++) {
-          if (!basic_types.count(inst.GetSingleWordInOperand(i))) {
-            all_members_are_basic_types = false;
-            break;
+        // A struct type is basic if it does not have the Block/BufferBlock
+        // decoration, and if all of its members are basic.
+        if (!fuzzerutil::HasBlockOrBufferBlockDecoration(GetIRContext(),
+                                                         inst.result_id())) {
+          bool all_members_are_basic_types = true;
+          for (uint32_t i = 0; i < inst.NumInOperands(); i++) {
+            if (!basic_types.count(inst.GetSingleWordInOperand(i))) {
+              all_members_are_basic_types = false;
+              break;
+            }
           }
-        }
-        if (all_members_are_basic_types) {
-          basic_types.insert(inst.result_id());
-          basic_type_to_pointers.insert({inst.result_id(), {}});
+          if (all_members_are_basic_types) {
+            basic_types.insert(inst.result_id());
+            basic_type_to_pointers.insert({inst.result_id(), {}});
+          }
         }
         break;
       }
@@ -514,6 +519,10 @@ uint32_t FuzzerPass::FindOrCreateZeroConstant(
           scalar_or_composite_type_id, is_irrelevant);
     }
     case SpvOpTypeStruct: {
+      assert(!fuzzerutil::HasBlockOrBufferBlockDecoration(
+                 GetIRContext(), scalar_or_composite_type_id) &&
+             "We do not construct constants of struct types decorated with "
+             "Block or BufferBlock.");
       std::vector<uint32_t> field_zero_ids;
       for (uint32_t index = 0; index < type_instruction->NumInOperands();
            index++) {
@@ -606,6 +615,29 @@ opt::BasicBlock* FuzzerPass::GetOrCreateSimpleLoopPreheader(
 
   // Make the newly-created preheader the new entry block.
   return &*function->FindBlock(preheader_id);
+}
+
+opt::BasicBlock* FuzzerPass::SplitBlockAfterOpPhiOrOpVariable(
+    uint32_t block_id) {
+  auto block = fuzzerutil::MaybeFindBlock(GetIRContext(), block_id);
+  assert(block && "|block_id| must be a block label");
+  assert(!block->IsLoopHeader() && "|block_id| cannot be a loop header");
+
+  // Find the first non-OpPhi and non-OpVariable instruction.
+  auto non_phi_or_var_inst = &*block->begin();
+  while (non_phi_or_var_inst->opcode() == SpvOpPhi ||
+         non_phi_or_var_inst->opcode() == SpvOpVariable) {
+    non_phi_or_var_inst = non_phi_or_var_inst->NextNode();
+  }
+
+  // Split the block.
+  uint32_t new_block_id = GetFuzzerContext()->GetFreshId();
+  ApplyTransformation(TransformationSplitBlock(
+      MakeInstructionDescriptor(GetIRContext(), non_phi_or_var_inst),
+      new_block_id));
+
+  // We need to return the newly-created block.
+  return &*block->GetParent()->FindBlock(new_block_id);
 }
 
 uint32_t FuzzerPass::FindOrCreateLocalVariable(

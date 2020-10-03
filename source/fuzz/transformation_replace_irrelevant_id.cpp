@@ -37,8 +37,8 @@ bool TransformationReplaceIrrelevantId::IsApplicable(
   auto id_of_interest = message_.id_use_descriptor().id_of_interest();
 
   // The id must be irrelevant.
-  if (!transformation_context.GetFactManager()->IdIsIrrelevant(id_of_interest,
-                                                               ir_context)) {
+  if (!transformation_context.GetFactManager()->IdIsIrrelevant(
+          id_of_interest)) {
     return false;
   }
 
@@ -104,6 +104,11 @@ protobufs::Transformation TransformationReplaceIrrelevantId::ToMessage() const {
   protobufs::Transformation result;
   *result.mutable_replace_irrelevant_id() = message_;
   return result;
+}
+
+std::unordered_set<uint32_t> TransformationReplaceIrrelevantId::GetFreshIds()
+    const {
+  return std::unordered_set<uint32_t>();
 }
 
 }  // namespace fuzz

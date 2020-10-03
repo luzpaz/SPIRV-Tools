@@ -133,7 +133,7 @@ void TransformationReplaceCopyObjectWithStoreLoad::Apply(
   // and src_operand (id used by OpCopyObject) are synonymous.
   transformation_context->GetFactManager()->AddFactDataSynonym(
       MakeDataDescriptor(message_.copy_object_result_id(), {}),
-      MakeDataDescriptor(src_operand, {}), ir_context);
+      MakeDataDescriptor(src_operand, {}));
 }
 
 protobufs::Transformation
@@ -141,6 +141,11 @@ TransformationReplaceCopyObjectWithStoreLoad::ToMessage() const {
   protobufs::Transformation result;
   *result.mutable_replace_copy_object_with_store_load() = message_;
   return result;
+}
+
+std::unordered_set<uint32_t>
+TransformationReplaceCopyObjectWithStoreLoad::GetFreshIds() const {
+  return {message_.fresh_variable_id()};
 }
 
 }  // namespace fuzz

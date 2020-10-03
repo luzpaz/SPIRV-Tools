@@ -155,7 +155,7 @@ void TransformationAddOpPhiSynonym::Apply(
   // that it is a synonym of the first one.
   transformation_context->GetFactManager()->AddFactDataSynonym(
       MakeDataDescriptor(message_.fresh_id(), {}),
-      MakeDataDescriptor(first_id, {}), ir_context);
+      MakeDataDescriptor(first_id, {}));
 }
 
 protobufs::Transformation TransformationAddOpPhiSynonym::ToMessage() const {
@@ -191,6 +191,11 @@ bool TransformationAddOpPhiSynonym::CheckTypeIsAllowed(
 
   // We do not allow other types.
   return false;
+}
+
+std::unordered_set<uint32_t> TransformationAddOpPhiSynonym::GetFreshIds()
+    const {
+  return {message_.fresh_id()};
 }
 
 }  // namespace fuzz

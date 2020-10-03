@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_add_constant_null.h"
+
 #include "test/fuzz/fuzz_test_util.h"
 
 namespace spvtools {
@@ -49,11 +50,9 @@ TEST(TransformationAddConstantNullTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // Id already in use
   ASSERT_FALSE(TransformationAddConstantNull(4, 11).IsApplicable(
       context.get(), transformation_context));
@@ -99,7 +98,8 @@ TEST(TransformationAddConstantNullTest, BasicTest) {
   for (auto& transformation : transformations) {
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   ASSERT_TRUE(IsValid(env, context.get()));
 

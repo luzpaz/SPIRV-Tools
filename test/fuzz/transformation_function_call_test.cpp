@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "source/fuzz/transformation_function_call.h"
+
 #include "source/fuzz/instruction_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -133,11 +134,9 @@ TEST(TransformationFunctionCallTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   transformation_context.GetFactManager()->AddFactBlockIsDead(59);
   transformation_context.GetFactManager()->AddFactBlockIsDead(11);
   transformation_context.GetFactManager()->AddFactBlockIsDead(18);
@@ -147,23 +146,23 @@ TEST(TransformationFunctionCallTest, BasicTest) {
   transformation_context.GetFactManager()->AddFactFunctionIsLivesafe(21);
   transformation_context.GetFactManager()->AddFactFunctionIsLivesafe(200);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      71, context.get());
+      71);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      72, context.get());
+      72);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      19, context.get());
+      19);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      20, context.get());
+      20);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      23, context.get());
+      23);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      44, context.get());
+      44);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      46, context.get());
+      46);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      51, context.get());
+      51);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      52, context.get());
+      52);
 
   // Livesafe functions with argument types: 21(7, 13), 200(7, 13)
   // Non-livesafe functions with argument types: 4(), 10(7), 17(7, 13), 24(7)
@@ -257,7 +256,8 @@ TEST(TransformationFunctionCallTest, BasicTest) {
         100, 21, {71, 72}, MakeInstructionDescriptor(59, SpvOpBranch, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -266,7 +266,8 @@ TEST(TransformationFunctionCallTest, BasicTest) {
         101, 21, {71, 72}, MakeInstructionDescriptor(98, SpvOpAccessChain, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -275,7 +276,8 @@ TEST(TransformationFunctionCallTest, BasicTest) {
         102, 200, {19, 20}, MakeInstructionDescriptor(36, SpvOpLoad, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -284,7 +286,8 @@ TEST(TransformationFunctionCallTest, BasicTest) {
         103, 10, {23}, MakeInstructionDescriptor(45, SpvOpLoad, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -293,7 +296,8 @@ TEST(TransformationFunctionCallTest, BasicTest) {
         104, 10, {201}, MakeInstructionDescriptor(205, SpvOpBranch, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
   {
@@ -302,7 +306,8 @@ TEST(TransformationFunctionCallTest, BasicTest) {
         105, 21, {62, 65}, MakeInstructionDescriptor(59, SpvOpBranch, 0));
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -446,11 +451,9 @@ TEST(TransformationFunctionCallTest, DoNotInvokeEntryPoint) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   transformation_context.GetFactManager()->AddFactBlockIsDead(11);
 
   // 4 is an entry point, so it is not legal for it to be the target of a call.

@@ -45,17 +45,15 @@ TEST(TransformationOutlineFunctionTest, TrivialOutline) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(5, 5, /* not relevant */ 200,
                                                100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -110,11 +108,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(5, 5, /* not relevant */ 200,
                                                100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
@@ -167,17 +163,15 @@ TEST(TransformationOutlineFunctionTest, OutlineInterestingControlFlowNoState) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 13, /* not relevant */
                                                200, 100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -256,17 +250,15 @@ TEST(TransformationOutlineFunctionTest, OutlineCodeThatGeneratesUnusedIds) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 6, /* not relevant */ 200,
                                                100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -334,16 +326,14 @@ TEST(TransformationOutlineFunctionTest, OutlineCodeThatGeneratesSingleUsedId) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 6, 99, 100, 101, 102, 103,
                                                105, {}, {{9, 104}});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -433,17 +423,15 @@ TEST(TransformationOutlineFunctionTest, OutlineDiamondThatGeneratesSeveralIds) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       6, 80, 100, 101, 102, 103, 104, 105, {},
       {{15, 106}, {9, 107}, {7, 108}, {8, 109}});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -533,16 +521,14 @@ TEST(TransformationOutlineFunctionTest, OutlineCodeThatUsesASingleId) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 6, 100, 101, 102, 103, 104,
                                                105, {{7, 106}}, {});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -611,16 +597,14 @@ TEST(TransformationOutlineFunctionTest, OutlineCodeThatUsesAVariable) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 6, 100, 101, 102, 103, 104,
                                                105, {{13, 106}}, {});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -699,16 +683,14 @@ TEST(TransformationOutlineFunctionTest, OutlineCodeThatUsesAParameter) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(11, 11, 100, 101, 102, 103, 104,
                                                105, {{9, 106}}, {{14, 107}});
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -789,11 +771,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 8, 100, 101, 102, 103, 104,
                                                105, {}, {});
   ASSERT_FALSE(
@@ -839,11 +819,9 @@ TEST(TransformationOutlineFunctionTest, DoNotOutlineIfRegionInvolvesReturn) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 11, /* not relevant */ 200,
                                                100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
@@ -890,11 +868,9 @@ TEST(TransformationOutlineFunctionTest, DoNotOutlineIfRegionInvolvesKill) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 11, /* not relevant */ 200,
                                                100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
@@ -942,11 +918,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 11, /* not relevant */ 200,
                                                100, 101, 102, 103,
                                                /* not relevant */ 201, {}, {});
@@ -986,11 +960,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 8, 100, 101, 102, 103, 104,
                                                105, {}, {});
   ASSERT_FALSE(
@@ -1030,11 +1002,9 @@ TEST(TransformationOutlineFunctionTest, DoNotOutlineIfLoopHeadIsOutsideRegion) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(7, 8, 100, 101, 102, 103, 104,
                                                105, {}, {});
   ASSERT_FALSE(
@@ -1073,11 +1043,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 7, 100, 101, 102, 103, 104,
                                                105, {}, {});
   ASSERT_FALSE(
@@ -1118,11 +1086,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(6, 7, 100, 101, 102, 103, 104,
                                                105, {}, {});
   ASSERT_FALSE(
@@ -1163,11 +1129,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(8, 11, 100, 101, 102, 103, 104,
                                                105, {}, {});
   ASSERT_FALSE(
@@ -1205,11 +1169,9 @@ TEST(TransformationOutlineFunctionTest, OutlineRegionEndingWithReturnVoid) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 54,
       /*exit_block*/ 58,
@@ -1224,7 +1186,7 @@ TEST(TransformationOutlineFunctionTest, OutlineRegionEndingWithReturnVoid) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -1296,11 +1258,9 @@ TEST(TransformationOutlineFunctionTest, OutlineRegionEndingWithReturnValue) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 9,
       /*exit_block*/ 10,
@@ -1315,7 +1275,7 @@ TEST(TransformationOutlineFunctionTest, OutlineRegionEndingWithReturnValue) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -1391,11 +1351,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 54,
       /*exit_block*/ 54,
@@ -1410,7 +1368,7 @@ TEST(TransformationOutlineFunctionTest,
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -1481,11 +1439,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 54,
       /*exit_block*/ 54,
@@ -1500,7 +1456,7 @@ TEST(TransformationOutlineFunctionTest,
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -1567,11 +1523,9 @@ TEST(TransformationOutlineFunctionTest, DoNotOutlineRegionThatStartsWithOpPhi) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 21,
       /*exit_block*/ 21,
@@ -1624,11 +1578,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 21,
       /*exit_block*/ 24,
@@ -1681,11 +1633,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 5,
       /*exit_block*/ 22,
@@ -1741,11 +1691,9 @@ TEST(TransformationOutlineFunctionTest, DoNotOutlineRegionThatUsesAccessChain) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 13,
       /*exit_block*/ 15,
@@ -1803,11 +1751,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 13,
       /*exit_block*/ 15,
@@ -1870,11 +1816,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 11,
       /*exit_block*/ 11,
@@ -1889,7 +1833,7 @@ TEST(TransformationOutlineFunctionTest,
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -2026,16 +1970,14 @@ TEST(TransformationOutlineFunctionTest, OutlineLivesafe) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   transformation_context.GetFactManager()->AddFactFunctionIsLivesafe(30);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      200, context.get());
+      200);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      201, context.get());
+      201);
 
   TransformationOutlineFunction transformation(
       /*entry_block*/ 198,
@@ -2051,7 +1993,7 @@ TEST(TransformationOutlineFunctionTest, OutlineLivesafe) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   // The original function should still be livesafe.
@@ -2255,11 +2197,9 @@ TEST(TransformationOutlineFunctionTest, OutlineWithDeadBlocks1) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   for (uint32_t block_id : {16u, 23u, 24u, 26u, 27u, 34u, 35u, 50u}) {
     transformation_context.GetFactManager()->AddFactBlockIsDead(block_id);
   }
@@ -2278,7 +2218,7 @@ TEST(TransformationOutlineFunctionTest, OutlineWithDeadBlocks1) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
   // All the original blocks, plus the new function entry block, should be dead.
   for (uint32_t block_id : {16u, 23u, 24u, 26u, 27u, 34u, 35u, 50u, 203u}) {
@@ -2339,11 +2279,9 @@ TEST(TransformationOutlineFunctionTest, OutlineWithDeadBlocks2) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   for (uint32_t block_id : {32u, 34u, 35u}) {
     transformation_context.GetFactManager()->AddFactBlockIsDead(block_id);
   }
@@ -2362,7 +2300,7 @@ TEST(TransformationOutlineFunctionTest, OutlineWithDeadBlocks2) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
   // The blocks that were originally dead, but not others, should be dead.
   for (uint32_t block_id : {32u, 34u, 35u}) {
@@ -2424,15 +2362,12 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+  transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(9);
   transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      9, context.get());
-  transformation_context.GetFactManager()->AddFactValueOfPointeeIsIrrelevant(
-      14, context.get());
+      14);
 
   TransformationOutlineFunction transformation(
       /*entry_block*/ 50,
@@ -2448,7 +2383,7 @@ TEST(TransformationOutlineFunctionTest,
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
   // The variables that were originally irrelevant, plus input parameters
   // corresponding to them, should be irrelevant.  The rest should not be.
@@ -2501,11 +2436,9 @@ TEST(TransformationOutlineFunctionTest,
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 80,
       /*exit_block*/ 80,
@@ -2559,11 +2492,9 @@ TEST(TransformationOutlineFunctionTest, ExitBlockHeadsLoop) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 22,
       /*exit_block*/ 23,
@@ -2578,7 +2509,7 @@ TEST(TransformationOutlineFunctionTest, ExitBlockHeadsLoop) {
 
   ASSERT_FALSE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
 }
 
 TEST(TransformationOutlineFunctionTest, Miscellaneous1) {
@@ -2742,9 +2673,8 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous1) {
         BuildModule(env, consumer, reference_shader, kFuzzAssembleOption);
     ASSERT_TRUE(IsValid(env, context.get()));
 
-    FactManager fact_manager;
-    TransformationContext transformation_context(&fact_manager,
-                                                 validator_options);
+    TransformationContext transformation_context(
+        MakeUnique<FactManager>(context.get()), validator_options);
 
 #ifndef NDEBUG
     // We expect the following applicability checks to lead to assertion
@@ -2763,7 +2693,8 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous1) {
 
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
 
     std::string variant_shader = R"(
@@ -2884,18 +2815,20 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous1) {
     const auto context =
         BuildModule(env, consumer, reference_shader, kFuzzAssembleOption);
     ASSERT_TRUE(IsValid(env, context.get()));
-    FactManager fact_manager;
+    auto overflow_ids_unique_ptr = MakeUnique<CounterOverflowIdSource>(2000);
+    auto overflow_ids_ptr = overflow_ids_unique_ptr.get();
     TransformationContext new_transformation_context(
-        &fact_manager, validator_options,
-        MakeUnique<CounterOverflowIdSource>(2000));
+        MakeUnique<FactManager>(context.get()), validator_options,
+        std::move(overflow_ids_unique_ptr));
     ASSERT_TRUE(transformation_with_missing_input_id.IsApplicable(
         context.get(), new_transformation_context));
     ASSERT_TRUE(transformation_with_missing_output_id.IsApplicable(
         context.get(), new_transformation_context));
     ASSERT_TRUE(transformation_with_missing_input_and_output_ids.IsApplicable(
         context.get(), new_transformation_context));
-    transformation_with_missing_input_and_output_ids.Apply(
-        context.get(), &new_transformation_context);
+    ApplyAndCheckFreshIds(transformation_with_missing_input_and_output_ids,
+                          context.get(), &new_transformation_context,
+                          overflow_ids_ptr->GetIssuedOverflowIds());
     ASSERT_TRUE(IsValid(env, context.get()));
 
     std::string variant_shader = R"(
@@ -3046,11 +2979,9 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous2) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 38,
       /*exit_block*/ 36,
@@ -3105,11 +3036,9 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous3) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 80,
       /*exit_block*/ 81,
@@ -3124,7 +3053,7 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous3) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(
@@ -3198,11 +3127,9 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous4) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   TransformationOutlineFunction transformation(
       /*entry_block*/ 80,
       /*exit_block*/ 106,
@@ -3217,7 +3144,7 @@ TEST(TransformationOutlineFunctionTest, Miscellaneous4) {
 
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
-  transformation.Apply(context.get(), &transformation_context);
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
   ASSERT_TRUE(IsValid(env, context.get()));
 
   std::string after_transformation = R"(

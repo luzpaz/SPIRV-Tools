@@ -21,7 +21,10 @@ if (${SPIRV_BUILD_FUZZER})
           comparator_deep_blocks_first_test.cpp
           data_synonym_transformation_test.cpp
           equivalence_relation_test.cpp
-          fact_manager_test.cpp
+          fact_manager/constant_uniform_facts_test.cpp
+          fact_manager/data_synonym_and_id_equation_facts_test.cpp
+          fact_manager/dead_block_facts_test.cpp
+          fact_manager/irrelevant_value_facts_test.cpp
           fuzz_test_util.cpp
           fuzzer_pass_add_opphi_synonyms_test.cpp
           fuzzer_pass_construct_composites_test.cpp
@@ -30,6 +33,7 @@ if (${SPIRV_BUILD_FUZZER})
           instruction_descriptor_test.cpp
           fuzzer_pass_test.cpp
           replayer_test.cpp
+          shrinker_test.cpp
           transformation_access_chain_test.cpp
           transformation_add_bit_instruction_synonym_test.cpp
           transformation_add_constant_boolean_test.cpp
@@ -46,6 +50,7 @@ if (${SPIRV_BUILD_FUZZER})
           transformation_add_image_sample_unused_components_test.cpp
           transformation_add_local_variable_test.cpp
           transformation_add_loop_preheader_test.cpp
+          transformation_add_loop_to_create_int_constant_synonym_test.cpp
           transformation_add_no_contraction_decoration_test.cpp
           transformation_add_opphi_synonym_test.cpp
           transformation_add_parameter_test.cpp
@@ -74,6 +79,7 @@ if (${SPIRV_BUILD_FUZZER})
           transformation_load_test.cpp
           transformation_make_vector_operation_dynamic_test.cpp
           transformation_merge_blocks_test.cpp
+          transformation_merge_function_returns_test.cpp
           transformation_move_block_down_test.cpp
           transformation_move_instruction_down_test.cpp
           transformation_mutate_pointer_test.cpp
@@ -106,6 +112,7 @@ if (${SPIRV_BUILD_FUZZER})
           transformation_toggle_access_chain_instruction_test.cpp
           transformation_record_synonymous_constants_test.cpp
           transformation_vector_shuffle_test.cpp
+          transformation_wrap_region_in_selection_test.cpp
           uniform_buffer_element_descriptor_test.cpp)
 
   if (${SPIRV_ENABLE_LONG_FUZZER_TESTS})

@@ -124,11 +124,9 @@ TEST(TransformationReplaceParamsWithStructTest, BasicTest) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   // |parameter_id| is empty.
   ASSERT_FALSE(
       TransformationReplaceParamsWithStruct({}, 90, 91, {{33, 92}, {90, 93}})
@@ -194,39 +192,45 @@ TEST(TransformationReplaceParamsWithStructTest, BasicTest) {
                                                          {{33, 92}, {90, 93}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParamsWithStruct transformation({43}, 93, 94,
                                                          {{33, 95}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParamsWithStruct transformation({17, 91, 94}, 96, 97,
                                                          {{33, 98}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParamsWithStruct transformation({55}, 99, 100, {{}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParamsWithStruct transformation({61}, 101, 102, {{}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
   {
     TransformationReplaceParamsWithStruct transformation({73}, 103, 104, {{}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
   }
 
   ASSERT_TRUE(IsValid(env, context.get()));
@@ -373,18 +377,17 @@ TEST(TransformationReplaceParamsWithStructTest, ParametersRemainValid) {
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
   ASSERT_TRUE(IsValid(env, context.get()));
 
-  FactManager fact_manager;
   spvtools::ValidatorOptions validator_options;
-  TransformationContext transformation_context(&fact_manager,
-                                               validator_options);
-
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
   {
     // Try to replace parameters in "increasing" order of their declaration.
     TransformationReplaceParamsWithStruct transformation({16, 17, 19}, 70, 71,
                                                          {{}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
@@ -431,7 +434,8 @@ TEST(TransformationReplaceParamsWithStructTest, ParametersRemainValid) {
                                                          {{}});
     ASSERT_TRUE(
         transformation.IsApplicable(context.get(), transformation_context));
-    transformation.Apply(context.get(), &transformation_context);
+    ApplyAndCheckFreshIds(transformation, context.get(),
+                          &transformation_context);
     ASSERT_TRUE(IsValid(env, context.get()));
   }
 
