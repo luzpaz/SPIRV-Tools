@@ -31,8 +31,8 @@ const std::pair<uint32_t, uint32_t> kChanceOfAddingAnotherPassToPassLoop = {85,
 const std::pair<uint32_t, uint32_t> kChanceOfAddingAnotherStructField = {20,
                                                                          90};
 const std::pair<uint32_t, uint32_t> kChanceOfAddingArrayOrStructType = {20, 90};
-const std::pair<uint32_t, uint32_t> kChanceOfAddingBitInstructionSynonym = {20,
-                                                                            90};
+const std::pair<uint32_t, uint32_t> kChanceOfAddingBitInstructionSynonym = {5,
+                                                                            20};
 const std::pair<uint32_t, uint32_t>
     kChanceOfAddingBothBranchesWhenReplacingOpSelect = {40, 60};
 const std::pair<uint32_t, uint32_t> kChanceOfAddingCompositeInsert = {20, 50};
@@ -107,11 +107,15 @@ const std::pair<uint32_t, uint32_t> kChanceOfOutliningFunction = {10, 90};
 const std::pair<uint32_t, uint32_t> kChanceOfPermutingInstructions = {20, 70};
 const std::pair<uint32_t, uint32_t> kChanceOfPermutingParameters = {30, 90};
 const std::pair<uint32_t, uint32_t> kChanceOfPermutingPhiOperands = {30, 90};
+const std::pair<uint32_t, uint32_t> kChanceOfPropagatingInstructionsDown = {20,
+                                                                            70};
 const std::pair<uint32_t, uint32_t> kChanceOfPropagatingInstructionsUp = {20,
                                                                           70};
 const std::pair<uint32_t, uint32_t> kChanceOfPushingIdThroughVariable = {5, 50};
 const std::pair<uint32_t, uint32_t>
     kChanceOfReplacingAddSubMulWithCarryingExtended = {20, 70};
+const std::pair<uint32_t, uint32_t>
+    kChanceOfReplacingBranchFromDeadBlockWithExit = {10, 65};
 const std::pair<uint32_t, uint32_t> kChanceOfReplacingCopyMemoryWithLoadStore =
     {20, 90};
 const std::pair<uint32_t, uint32_t> kChanceOfReplacingCopyObjectWithStoreLoad =
@@ -294,12 +298,16 @@ FuzzerContext::FuzzerContext(RandomGenerator* random_generator,
       ChooseBetweenMinAndMax(kChanceOfPermutingParameters);
   chance_of_permuting_phi_operands_ =
       ChooseBetweenMinAndMax(kChanceOfPermutingPhiOperands);
+  chance_of_propagating_instructions_down_ =
+      ChooseBetweenMinAndMax(kChanceOfPropagatingInstructionsDown);
   chance_of_propagating_instructions_up_ =
       ChooseBetweenMinAndMax(kChanceOfPropagatingInstructionsUp);
   chance_of_pushing_id_through_variable_ =
       ChooseBetweenMinAndMax(kChanceOfPushingIdThroughVariable);
   chance_of_replacing_add_sub_mul_with_carrying_extended_ =
       ChooseBetweenMinAndMax(kChanceOfReplacingAddSubMulWithCarryingExtended);
+  chance_of_replacing_branch_from_dead_block_with_exit_ =
+      ChooseBetweenMinAndMax(kChanceOfReplacingBranchFromDeadBlockWithExit);
   chance_of_replacing_copy_memory_with_load_store_ =
       ChooseBetweenMinAndMax(kChanceOfReplacingCopyMemoryWithLoadStore);
   chance_of_replacing_copyobject_with_store_load_ =

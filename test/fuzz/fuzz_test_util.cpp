@@ -14,6 +14,8 @@
 
 #include "test/fuzz/fuzz_test_util.h"
 
+#include "gtest/gtest.h"
+
 #include <fstream>
 #include <iostream>
 
@@ -22,6 +24,29 @@
 
 namespace spvtools {
 namespace fuzz {
+
+const spvtools::MessageConsumer kConsoleMessageConsumer =
+    [](spv_message_level_t level, const char*, const spv_position_t& position,
+       const char* message) -> void {
+  switch (level) {
+    case SPV_MSG_FATAL:
+    case SPV_MSG_INTERNAL_ERROR:
+    case SPV_MSG_ERROR:
+      std::cerr << "error: line " << position.index << ": " << message
+                << std::endl;
+      break;
+    case SPV_MSG_WARNING:
+      std::cout << "warning: line " << position.index << ": " << message
+                << std::endl;
+      break;
+    case SPV_MSG_INFO:
+      std::cout << "info: line " << position.index << ": " << message
+                << std::endl;
+      break;
+    default:
+      break;
+  }
+};
 
 bool IsEqual(const spv_target_env env,
              const std::vector<uint32_t>& expected_binary,
@@ -80,14 +105,6 @@ bool IsEqual(const spv_target_env env, const std::vector<uint32_t>& binary_1,
   return IsEqual(env, binary_1, binary_2);
 }
 
-bool IsValid(spv_target_env env, const opt::IRContext* ir) {
-  std::vector<uint32_t> binary;
-  ir->module()->ToBinary(&binary, false);
-  SpirvTools t(env);
-  t.SetMessageConsumer(kConsoleMessageConsumer);
-  return t.Validate(binary);
-}
-
 std::string ToString(spv_target_env env, const opt::IRContext* ir) {
   std::vector<uint32_t> binary;
   ir->module()->ToBinary(&binary, false);
@@ -113,6 +130,15 @@ void DumpShader(const std::vector<uint32_t>& binary, const char* filename) {
   if (!write_file_succeeded) {
     std::cerr << "Failed to dump shader" << std::endl;
   }
+}
+
+void DumpTransformationsBinary(
+    const protobufs::TransformationSequence& transformations,
+    const char* filename) {
+  std::ofstream transformations_file;
+  transformations_file.open(filename, std::ios::out | std::ios::binary);
+  transformations.SerializeToOstream(&transformations_file);
+  transformations_file.close();
 }
 
 void DumpTransformationsJson(
@@ -156,13 +182,6 @@ void ApplyAndCheckFreshIds(
                   introduced_by_overflow_ids);
     }
   }
-}
-
-void ApplyAndCheckFreshIds(const Transformation& transformation,
-                           opt::IRContext* ir_context,
-                           TransformationContext* transformation_context) {
-  ApplyAndCheckFreshIds(transformation, ir_context, transformation_context,
-                        std::unordered_set<uint32_t>());
 }
 
 }  // namespace fuzz

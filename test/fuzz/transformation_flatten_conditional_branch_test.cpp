@@ -14,7 +14,9 @@
 
 #include "source/fuzz/transformation_flatten_conditional_branch.h"
 
+#include "gtest/gtest.h"
 #include "source/fuzz/counter_overflow_id_source.h"
+#include "source/fuzz/fuzzer_util.h"
 #include "source/fuzz/instruction_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -25,8 +27,8 @@ namespace {
 protobufs::SideEffectWrapperInfo MakeSideEffectWrapperInfo(
     const protobufs::InstructionDescriptor& instruction,
     uint32_t merge_block_id, uint32_t execute_block_id,
-    uint32_t actual_result_id = 0, uint32_t alternative_block_id = 0,
-    uint32_t placeholder_result_id = 0, uint32_t value_to_copy_id = 0) {
+    uint32_t actual_result_id, uint32_t alternative_block_id,
+    uint32_t placeholder_result_id, uint32_t value_to_copy_id) {
   protobufs::SideEffectWrapperInfo result;
   *result.mutable_instruction() = instruction;
   result.set_merge_block_id(merge_block_id);
@@ -36,6 +38,13 @@ protobufs::SideEffectWrapperInfo MakeSideEffectWrapperInfo(
   result.set_placeholder_result_id(placeholder_result_id);
   result.set_value_to_copy_id(value_to_copy_id);
   return result;
+}
+
+protobufs::SideEffectWrapperInfo MakeSideEffectWrapperInfo(
+    const protobufs::InstructionDescriptor& instruction,
+    uint32_t merge_block_id, uint32_t execute_block_id) {
+  return MakeSideEffectWrapperInfo(instruction, merge_block_id,
+                                   execute_block_id, 0, 0, 0, 0);
 }
 
 TEST(TransformationFlattenConditionalBranchTest, Inapplicable) {
@@ -130,9 +139,9 @@ TEST(TransformationFlattenConditionalBranchTest, Inapplicable) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
   // Block %15 does not end with OpBranchConditional.
@@ -236,9 +245,9 @@ TEST(TransformationFlattenConditionalBranchTest, Simple) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
   auto transformation1 = TransformationFlattenConditionalBranch(7, true, {});
@@ -265,7 +274,8 @@ TEST(TransformationFlattenConditionalBranchTest, Simple) {
   ApplyAndCheckFreshIds(transformation4, context.get(),
                         &transformation_context);
 
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformations = R"(
                OpCapability Shader
@@ -410,9 +420,9 @@ TEST(TransformationFlattenConditionalBranchTest, LoadStoreFunctionCall) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
 #ifndef NDEBUG
@@ -434,19 +444,19 @@ TEST(TransformationFlattenConditionalBranchTest, LoadStoreFunctionCall) {
 #endif
 
   // The map maps from an instruction to a list with not enough fresh ids.
-  ASSERT_FALSE(
-      TransformationFlattenConditionalBranch(
-          31, true,
-          {{MakeSideEffectWrapperInfo(
-              MakeInstructionDescriptor(6, SpvOpLoad, 0), 100, 101, 102, 103)}})
-          .IsApplicable(context.get(), transformation_context));
+  ASSERT_FALSE(TransformationFlattenConditionalBranch(
+                   31, true,
+                   {{MakeSideEffectWrapperInfo(
+                       MakeInstructionDescriptor(6, SpvOpLoad, 0), 100, 101,
+                       102, 103, 0, 0)}})
+                   .IsApplicable(context.get(), transformation_context));
 
   // Not all fresh ids given are distinct.
   ASSERT_FALSE(TransformationFlattenConditionalBranch(
                    31, true,
                    {{MakeSideEffectWrapperInfo(
                        MakeInstructionDescriptor(6, SpvOpLoad, 0), 100, 100,
-                       102, 103, 104)}})
+                       102, 103, 104, 0)}})
                    .IsApplicable(context.get(), transformation_context));
 
   // %48 heads a construct containing an OpSampledImage instruction.
@@ -454,7 +464,7 @@ TEST(TransformationFlattenConditionalBranchTest, LoadStoreFunctionCall) {
                    48, true,
                    {{MakeSideEffectWrapperInfo(
                        MakeInstructionDescriptor(53, SpvOpLoad, 0), 100, 101,
-                       102, 103, 104)}})
+                       102, 103, 104, 0)}})
                    .IsApplicable(context.get(), transformation_context));
 
   // %0 is not a valid id.
@@ -508,7 +518,8 @@ TEST(TransformationFlattenConditionalBranchTest, LoadStoreFunctionCall) {
                         &new_transformation_context,
                         overflow_ids_ptr->GetIssuedOverflowIds());
 
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformations = R"(
                OpCapability Shader
@@ -686,9 +697,9 @@ TEST(TransformationFlattenConditionalBranchTest, EdgeCases) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
 #ifndef NDEBUG
@@ -728,7 +739,8 @@ TEST(TransformationFlattenConditionalBranchTest, EdgeCases) {
   ApplyAndCheckFreshIds(transformation2, context.get(),
                         &transformation_context);
 
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformation = R"(
                OpCapability Shader
@@ -819,9 +831,9 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect1) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
 
@@ -829,7 +841,8 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect1) {
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
   ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformation = R"(
                OpCapability Shader
@@ -884,9 +897,9 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect2) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
 
@@ -894,7 +907,8 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect2) {
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
   ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformation = R"(
                OpCapability Shader
@@ -951,9 +965,9 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect3) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
 
@@ -961,7 +975,8 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect3) {
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
   ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformation = R"(
                OpCapability Shader
@@ -1020,9 +1035,9 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect4) {
   const auto env = SPV_ENV_UNIVERSAL_1_5;
   const auto consumer = nullptr;
   const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
-  ASSERT_TRUE(IsValid(env, context.get()));
-
   spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
   TransformationContext transformation_context(
       MakeUnique<FactManager>(context.get()), validator_options);
 
@@ -1030,7 +1045,8 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect4) {
   ASSERT_TRUE(
       transformation.IsApplicable(context.get(), transformation_context));
   ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
-  ASSERT_TRUE(IsValid(env, context.get()));
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 
   std::string after_transformation = R"(
                OpCapability Shader
@@ -1057,6 +1073,164 @@ TEST(TransformationFlattenConditionalBranchTest, PhiToSelect4) {
                OpFunctionEnd
 )";
   ASSERT_TRUE(IsEqual(env, after_transformation, context.get()));
+}
+
+TEST(TransformationFlattenConditionalBranchTest, PhiToSelect5) {
+  std::string shader = R"(
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %2 "main"
+               OpExecutionMode %2 OriginUpperLeft
+               OpSource ESSL 310
+          %3 = OpTypeVoid
+          %4 = OpTypeBool
+          %5 = OpConstantTrue %4
+         %10 = OpConstantFalse %4
+          %6 = OpTypeFunction %3
+        %100 = OpTypePointer Function %4
+          %2 = OpFunction %3 None %6
+          %7 = OpLabel
+        %101 = OpVariable %100 Function
+        %102 = OpVariable %100 Function
+               OpSelectionMerge %470 None
+               OpBranchConditional %5 %454 %462
+        %454 = OpLabel
+        %522 = OpLoad %4 %101
+               OpBranch %470
+        %462 = OpLabel
+        %466 = OpLoad %4 %102
+               OpBranch %470
+        %470 = OpLabel
+        %534 = OpPhi %4 %522 %454 %466 %462
+               OpReturn
+               OpFunctionEnd
+)";
+
+  const auto env = SPV_ENV_UNIVERSAL_1_5;
+  const auto consumer = nullptr;
+  const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
+  spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
+
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+
+  auto transformation = TransformationFlattenConditionalBranch(
+      7, true,
+      {MakeSideEffectWrapperInfo(MakeInstructionDescriptor(522, SpvOpLoad, 0),
+                                 200, 201, 202, 203, 204, 5),
+       MakeSideEffectWrapperInfo(MakeInstructionDescriptor(466, SpvOpLoad, 0),
+                                 300, 301, 302, 303, 304, 5)});
+  ASSERT_TRUE(
+      transformation.IsApplicable(context.get(), transformation_context));
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
+
+  std::string after_transformation = R"(
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %2 "main"
+               OpExecutionMode %2 OriginUpperLeft
+               OpSource ESSL 310
+          %3 = OpTypeVoid
+          %4 = OpTypeBool
+          %5 = OpConstantTrue %4
+         %10 = OpConstantFalse %4
+          %6 = OpTypeFunction %3
+        %100 = OpTypePointer Function %4
+          %2 = OpFunction %3 None %6
+          %7 = OpLabel
+        %101 = OpVariable %100 Function
+        %102 = OpVariable %100 Function
+               OpBranch %454
+        %454 = OpLabel
+               OpSelectionMerge %200 None
+               OpBranchConditional %5 %201 %203
+        %201 = OpLabel
+        %202 = OpLoad %4 %101
+               OpBranch %200
+        %203 = OpLabel
+        %204 = OpCopyObject %4 %5
+               OpBranch %200
+        %200 = OpLabel
+        %522 = OpPhi %4 %202 %201 %204 %203
+               OpBranch %462
+        %462 = OpLabel
+               OpSelectionMerge %300 None
+               OpBranchConditional %5 %303 %301
+        %301 = OpLabel
+        %302 = OpLoad %4 %102
+               OpBranch %300
+        %303 = OpLabel
+        %304 = OpCopyObject %4 %5
+               OpBranch %300
+        %300 = OpLabel
+        %466 = OpPhi %4 %302 %301 %304 %303
+               OpBranch %470
+        %470 = OpLabel
+        %534 = OpSelect %4 %5 %522 %466
+               OpReturn
+               OpFunctionEnd
+)";
+  ASSERT_TRUE(IsEqual(env, after_transformation, context.get()));
+}
+
+TEST(TransformationFlattenConditionalBranchTest,
+     LoadFromBufferBlockDecoratedStruct) {
+  std::string shader = R"(
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %4 "main"
+               OpExecutionMode %4 OriginUpperLeft
+               OpSource ESSL 320
+               OpMemberDecorate %11 0 Offset 0
+               OpDecorate %11 BufferBlock
+               OpDecorate %13 DescriptorSet 0
+               OpDecorate %13 Binding 0
+          %2 = OpTypeVoid
+          %3 = OpTypeFunction %2
+          %6 = OpTypeBool
+          %7 = OpConstantTrue %6
+         %10 = OpTypeInt 32 1
+         %11 = OpTypeStruct %10
+         %12 = OpTypePointer Uniform %11
+         %13 = OpVariable %12 Uniform
+         %21 = OpUndef %11
+          %4 = OpFunction %2 None %3
+          %5 = OpLabel
+               OpSelectionMerge %9 None
+               OpBranchConditional %7 %8 %9
+          %8 = OpLabel
+         %20 = OpLoad %11 %13
+               OpBranch %9
+          %9 = OpLabel
+               OpReturn
+               OpFunctionEnd
+  )";
+
+  const auto env = SPV_ENV_UNIVERSAL_1_3;
+  const auto consumer = nullptr;
+  const auto context = BuildModule(env, consumer, shader, kFuzzAssembleOption);
+  spvtools::ValidatorOptions validator_options;
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
+  TransformationContext transformation_context(
+      MakeUnique<FactManager>(context.get()), validator_options);
+
+  auto transformation = TransformationFlattenConditionalBranch(
+      5, true,
+      {MakeSideEffectWrapperInfo(MakeInstructionDescriptor(20, SpvOpLoad, 0),
+                                 100, 101, 102, 103, 104, 21)});
+  ASSERT_TRUE(
+      transformation.IsApplicable(context.get(), transformation_context));
+  ApplyAndCheckFreshIds(transformation, context.get(), &transformation_context);
+  ASSERT_TRUE(fuzzerutil::IsValidAndWellFormed(context.get(), validator_options,
+                                               kConsoleMessageConsumer));
 }
 
 }  // namespace

@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include "source/fuzz/fuzzer.h"
+#include "source/fuzz/replayer.h"
+
+#include "gtest/gtest.h"
 #include "source/fuzz/fuzzer_util.h"
 #include "source/fuzz/pseudo_random_generator.h"
-#include "source/fuzz/replayer.h"
 #include "source/fuzz/uniform_buffer_element_descriptor.h"
 #include "test/fuzz/fuzz_test_util.h"
 
@@ -1650,9 +1652,10 @@ void RunFuzzerAndReplayer(const std::string& shader,
     // Every 4th time we run the fuzzer, enable all fuzzer passes.
     bool enable_all_passes = (seed % 4) == 0;
     auto fuzzer_result =
-        Fuzzer(env, kSilentConsumer, binary_in, initial_facts, donor_suppliers,
-               MakeUnique<PseudoRandomGenerator>(seed), enable_all_passes,
-               strategies[strategy_index], true, validator_options)
+        Fuzzer(env, kConsoleMessageConsumer, binary_in, initial_facts,
+               donor_suppliers, MakeUnique<PseudoRandomGenerator>(seed),
+               enable_all_passes, strategies[strategy_index], true,
+               validator_options)
             .Run();
 
     // Cycle the repeated pass strategy so that we try a different one next time

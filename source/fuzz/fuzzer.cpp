@@ -17,6 +17,7 @@
 #include <cassert>
 #include <memory>
 #include <numeric>
+#include <sstream>
 
 #include "source/fuzz/fact_manager/fact_manager.h"
 #include "source/fuzz/fuzzer_context.h"
@@ -68,9 +69,11 @@
 #include "source/fuzz/fuzzer_pass_permute_function_parameters.h"
 #include "source/fuzz/fuzzer_pass_permute_instructions.h"
 #include "source/fuzz/fuzzer_pass_permute_phi_operands.h"
+#include "source/fuzz/fuzzer_pass_propagate_instructions_down.h"
 #include "source/fuzz/fuzzer_pass_propagate_instructions_up.h"
 #include "source/fuzz/fuzzer_pass_push_ids_through_variables.h"
 #include "source/fuzz/fuzzer_pass_replace_adds_subs_muls_with_carrying_extended.h"
+#include "source/fuzz/fuzzer_pass_replace_branches_from_dead_blocks_with_exits.h"
 #include "source/fuzz/fuzzer_pass_replace_copy_memories_with_loads_stores.h"
 #include "source/fuzz/fuzzer_pass_replace_copy_objects_with_stores_loads.h"
 #include "source/fuzz/fuzzer_pass_replace_irrelevant_ids.h"
@@ -155,21 +158,11 @@ void Fuzzer::MaybeAddFinalPass(std::vector<std::unique_ptr<FuzzerPass>>* passes,
   }
 }
 
-bool Fuzzer::ApplyPassAndCheckValidity(
-    FuzzerPass* pass, const spvtools::SpirvTools& tools) const {
+bool Fuzzer::ApplyPassAndCheckValidity(FuzzerPass* pass) const {
   pass->Apply();
-  if (validate_after_each_fuzzer_pass_) {
-    std::vector<uint32_t> binary_to_validate;
-    ir_context_->module()->ToBinary(&binary_to_validate, false);
-    if (!tools.Validate(&binary_to_validate[0], binary_to_validate.size(),
-                        validator_options_)) {
-      consumer_(SPV_MSG_INFO, nullptr, {},
-                "Binary became invalid during fuzzing (set a breakpoint to "
-                "inspect); stopping.");
-      return false;
-    }
-  }
-  return true;
+  return !validate_after_each_fuzzer_pass_ ||
+         fuzzerutil::IsValidAndWellFormed(ir_context_.get(), validator_options_,
+                                          consumer_);
 }
 
 Fuzzer::FuzzerResult Fuzzer::Run() {
@@ -276,9 +269,12 @@ Fuzzer::FuzzerResult Fuzzer::Run() {
     MaybeAddRepeatedPass<FuzzerPassPermuteBlocks>(&pass_instances);
     MaybeAddRepeatedPass<FuzzerPassPermuteFunctionParameters>(&pass_instances);
     MaybeAddRepeatedPass<FuzzerPassPermuteInstructions>(&pass_instances);
+    MaybeAddRepeatedPass<FuzzerPassPropagateInstructionsDown>(&pass_instances);
     MaybeAddRepeatedPass<FuzzerPassPropagateInstructionsUp>(&pass_instances);
     MaybeAddRepeatedPass<FuzzerPassPushIdsThroughVariables>(&pass_instances);
     MaybeAddRepeatedPass<FuzzerPassReplaceAddsSubsMulsWithCarryingExtended>(
+        &pass_instances);
+    MaybeAddRepeatedPass<FuzzerPassReplaceBranchesFromDeadBlocksWithExits>(
         &pass_instances);
     MaybeAddRepeatedPass<FuzzerPassReplaceCopyMemoriesWithLoadsStores>(
         &pass_instances);
@@ -325,8 +321,7 @@ Fuzzer::FuzzerResult Fuzzer::Run() {
 
   do {
     if (!ApplyPassAndCheckValidity(
-            repeated_pass_manager->ChoosePass(transformation_sequence_out_),
-            tools)) {
+            repeated_pass_manager->ChoosePass(transformation_sequence_out_))) {
       return {Fuzzer::FuzzerResultStatus::kFuzzerPassLedToInvalidModule,
               std::vector<uint32_t>(), protobufs::TransformationSequence()};
     }
@@ -348,7 +343,7 @@ Fuzzer::FuzzerResult Fuzzer::Run() {
   MaybeAddFinalPass<FuzzerPassSwapCommutableOperands>(&final_passes);
   MaybeAddFinalPass<FuzzerPassToggleAccessChainInstruction>(&final_passes);
   for (auto& pass : final_passes) {
-    if (!ApplyPassAndCheckValidity(pass.get(), tools)) {
+    if (!ApplyPassAndCheckValidity(pass.get())) {
       return {Fuzzer::FuzzerResultStatus::kFuzzerPassLedToInvalidModule,
               std::vector<uint32_t>(), protobufs::TransformationSequence()};
     }

@@ -15,6 +15,7 @@
 #ifndef SOURCE_FUZZ_FUZZER_UTIL_H_
 #define SOURCE_FUZZ_FUZZER_UTIL_H_
 
+#include <iostream>
 #include <map>
 #include <vector>
 
@@ -23,12 +24,16 @@
 #include "source/opt/basic_block.h"
 #include "source/opt/instruction.h"
 #include "source/opt/ir_context.h"
+#include "spirv-tools/libspirv.hpp"
 
 namespace spvtools {
 namespace fuzz {
 
 // Provides types and global utility methods for use by the fuzzer
 namespace fuzzerutil {
+
+// A silent message consumer.
+extern const spvtools::MessageConsumer kSilentMessageConsumer;
 
 // Function type that produces a SPIR-V module.
 using ModuleSupplier = std::function<std::unique_ptr<opt::IRContext>()>;
@@ -150,8 +155,18 @@ uint32_t GetBoundForCompositeIndex(const opt::Instruction& composite_type_inst,
                                    opt::IRContext* ir_context);
 
 // Returns true if and only if |context| is valid, according to the validator
-// instantiated with |validator_options|.
-bool IsValid(opt::IRContext* context, spv_validator_options validator_options);
+// instantiated with |validator_options|.  |consumer| is used for error
+// reporting.
+bool IsValid(const opt::IRContext* context,
+             spv_validator_options validator_options, MessageConsumer consumer);
+
+// Returns true if and only if IsValid(|context|, |validator_options|) holds,
+// and furthermore every basic block in |context| has its enclosing function as
+// its parent, and every instruction in |context| has a distinct unique id.
+// |consumer| is used for error reporting.
+bool IsValidAndWellFormed(const opt::IRContext* context,
+                          spv_validator_options validator_options,
+                          MessageConsumer consumer);
 
 // Returns a clone of |context|, by writing |context| to a binary and then
 // parsing it again.
@@ -379,6 +394,10 @@ uint32_t MaybeGetVectorType(opt::IRContext* ir_context,
 uint32_t MaybeGetStructType(opt::IRContext* ir_context,
                             const std::vector<uint32_t>& component_type_ids);
 
+// Returns a result id of an OpTypeVoid instruction if present. Returns 0
+// otherwise.
+uint32_t MaybeGetVoidType(opt::IRContext* ir_context);
+
 // Recursive definition is the following:
 // - if |scalar_or_composite_type_id| is a result id of a scalar type - returns
 //   a result id of the following constants (depending on the type): int -> 0,
@@ -395,9 +414,10 @@ uint32_t MaybeGetZeroConstant(
     uint32_t scalar_or_composite_type_id, bool is_irrelevant);
 
 // Returns true if it is possible to create an OpConstant or an
-// OpConstantComposite instruction of |type|. That is, returns true if |type|
-// and all its constituents are either scalar or composite.
-bool CanCreateConstant(const opt::analysis::Type& type);
+// OpConstantComposite instruction of type |type_id|. That is, returns true if
+// the type associated with |type_id| and all its constituents are either scalar
+// or composite.
+bool CanCreateConstant(opt::IRContext* ir_context, uint32_t type_id);
 
 // Returns the result id of an OpConstant instruction. |scalar_type_id| must be
 // a result id of a scalar type (i.e. int, float or bool). Returns 0 if no such
