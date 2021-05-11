@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Google LLC
+// Copyright (c) 2021 Shiyu Liu
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SOURCE_FUZZ_TRANSFORMATION_ADD_TYPE_ARRAY_H_
-#define SOURCE_FUZZ_TRANSFORMATION_ADD_TYPE_ARRAY_H_
+#ifndef SOURCE_FUZZ_TRANSFORMATION_SWAP_TWO_FUNCTIONS_H_
+#define SOURCE_FUZZ_TRANSFORMATION_SWAP_TWO_FUNCTIONS_H_
 
 #include "source/fuzz/protobufs/spirvfuzz_protobufs.h"
 #include "source/fuzz/transformation.h"
@@ -23,39 +23,34 @@
 namespace spvtools {
 namespace fuzz {
 
-class TransformationAddTypeArray : public Transformation {
+class TransformationSwapTwoFunctions : public Transformation {
  public:
-  explicit TransformationAddTypeArray(
-      protobufs::TransformationAddTypeArray message);
+  explicit TransformationSwapTwoFunctions(
+      protobufs::TransformationSwapTwoFunctions message);
 
-  TransformationAddTypeArray(uint32_t fresh_id, uint32_t element_type_id,
-                             uint32_t size_id);
+  TransformationSwapTwoFunctions(uint32_t function_id1, uint32_t function_id2);
 
-  // - |message_.fresh_id| must be fresh
-  // - |message_.element_type_id| must be the id of a non-function type
-  // - |message_.member_type_id| must not be the result id of an OpTypeStruct
-  //   instruction that has the Block or BufferBlock decoration
-  // - |message_.size_id| must be the id of a 32-bit integer constant that is
-  //   positive when interpreted as signed
+  // |function_id1| and  |function_id1| should all be existing ids.
+  //  Swap function operation is only permitted if:
+  //  - both ids must be ids of functions.
+  //  - both ids can be found in the module.
+  //  - function_id1 and function_id2 are not the same.
   bool IsApplicable(
       opt::IRContext* ir_context,
       const TransformationContext& transformation_context) const override;
 
-  // Adds an OpTypeArray instruction to the module, with element type given by
-  // |message_.element_type_id| and size given by |message_.size_id|.  The
-  // result id of the instruction is |message_.fresh_id|.
+  // OpFunction with |function_id1| and |function_id1| are swapped.
   void Apply(opt::IRContext* ir_context,
              TransformationContext* transformation_context) const override;
 
   std::unordered_set<uint32_t> GetFreshIds() const override;
-
   protobufs::Transformation ToMessage() const override;
 
  private:
-  protobufs::TransformationAddTypeArray message_;
+  protobufs::TransformationSwapTwoFunctions message_;
 };
 
 }  // namespace fuzz
 }  // namespace spvtools
 
-#endif  // SOURCE_FUZZ_TRANSFORMATION_ADD_TYPE_ARRAY_H_
+#endif  // SOURCE_FUZZ_TRANSFORMATION_SWAP_TWO_FUNCTIONS_H_
